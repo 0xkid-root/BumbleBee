@@ -1,0 +1,377 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Enhanced Color Palette with Extended Variants */
+  :root {
+    /* Base Colors */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    /* Card & UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    /* Primary - Amber/Gold - Unchanged */
+    --primary: 45 93% 47%;
+    --primary-foreground: 240 5.9% 10%;
+    --primary-light: 45 100% 96%;
+    --primary-light-foreground: 45 80% 30%;
+    --primary-dark: 45 93% 40%;
+    --primary-dark-foreground: 0 0% 100%;
+
+    /* Secondary - Updated to Black/Dark Gray (from Teal) */
+    --secondary: 240 10% 10%;
+    --secondary-foreground: 0 0% 98%;
+    --secondary-light: 240 10% 20%;
+    --secondary-light-foreground: 0 0% 98%;
+    --secondary-dark: 240 10% 5%;
+    --secondary-dark-foreground: 0 0% 100%;
+
+    /* Accent - Updated to Honey-Amber (from Purple) */
+    --accent: 30 90% 55%;
+    --accent-foreground: 240 5.9% 10%;
+    --accent-light: 30 90% 94%;
+    --accent-light-foreground: 30 90% 30%;
+    --accent-dark: 30 90% 45%;
+    --accent-dark-foreground: 0 0% 100%;
+
+    /* UI Variants */
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
+
+    /* Borders & Inputs */
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 45 93% 47%;
+
+    /* Radius */
+    --radius: 0.5rem;
+    --radius-sm: 0.3rem;
+    --radius-lg: 0.8rem;
+    --radius-xl: 1.2rem;
+    --radius-full: 9999px;
+  }
+
+  .dark {
+    /* Base Colors */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    /* Card & UI Elements */
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Primary - Amber/Gold - Unchanged */
+    --primary: 45 93% 47%;
+    --primary-foreground: 240 5.9% 10%;
+    --primary-light: 45 70% 25%;
+    --primary-light-foreground: 45 100% 96%;
+    --primary-dark: 45 93% 55%;
+    --primary-dark-foreground: 240 5.9% 10%;
+
+    /* Secondary - Updated to Black/Dark Gray (from Teal) */
+    --secondary: 240 10% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --secondary-light: 240 10% 25%;
+    --secondary-light-foreground: 0 0% 98%;
+    --secondary-dark: 240 10% 10%;
+    --secondary-dark-foreground: 0 0% 98%;
+
+    /* Accent - Updated to Honey-Amber (from Purple) */
+    --accent: 30 90% 55%;
+    --accent-foreground: 240 5.9% 10%;
+    --accent-light: 30 90% 35%;
+    --accent-light-foreground: 30 90% 94%;
+    --accent-dark: 30 90% 65%;
+    --accent-dark-foreground: 240 5.9% 10%;
+
+    /* UI Variants */
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 98%;
+
+    /* Borders & Inputs */
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 45 93% 47%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Enhanced Typography System */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl font-bold leading-tight;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl lg:text-5xl font-bold leading-tight;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl font-bold leading-tight;
+  }
+
+  h4 {
+    @apply text-xl md:text-2xl font-semibold leading-snug;
+  }
+
+  h5 {
+    @apply text-lg md:text-xl font-semibold leading-snug;
+  }
+
+  h6 {
+    @apply text-base md:text-lg font-semibold leading-snug;
+  }
+
+  p {
+    @apply text-base leading-relaxed;
+  }
+
+  .lead {
+    @apply text-xl md:text-2xl font-normal leading-relaxed;
+  }
+
+  .small {
+    @apply text-sm leading-normal;
+  }
+
+  .tiny {
+    @apply text-xs leading-normal;
+  }
+
+  blockquote {
+    @apply pl-4 border-l-4 border-primary italic;
+  }
+
+  code {
+    @apply px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-sm;
+  }
+}
+
+/* Utility classes for typography */
+@layer utilities {
+  .font-heading {
+    font-family: var(--font-heading, var(--font-sans));
+  }
+
+  .font-body {
+    font-family: var(--font-body, var(--font-sans));
+  }
+
+  .font-mono {
+    font-family: var(--font-mono, monospace);
+  }
+
+  /* Text gradient utilities */
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-primary/70;
+  }
+
+  .text-gradient-secondary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-secondary via-secondary/90 to-secondary/70;
+  }
+
+  .text-gradient-accent {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent via-accent/90 to-accent/70;
+  }
+
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400;
+  }
+
+  /* New bumblebee gradient - alternating black and gold stripes */
+  .bg-gradient-bumblebee {
+    @apply bg-gradient-to-r from-secondary via-primary to-secondary;
+  }
+
+  /* Line height utilities */
+  .leading-tight {
+    line-height: 1.2;
+  }
+
+  .leading-snug {
+    line-height: 1.375;
+  }
+
+  .leading-normal {
+    line-height: 1.5;
+  }
+
+  .leading-relaxed {
+    line-height: 1.625;
+  }
+
+  .leading-loose {
+    line-height: 2;
+  }
+
+  /* Letter spacing utilities */
+  .tracking-tighter {
+    letter-spacing: -0.05em;
+  }
+
+  .tracking-tight {
+    letter-spacing: -0.025em;
+  }
+
+  .tracking-normal {
+    letter-spacing: 0;
+  }
+
+  .tracking-wide {
+    letter-spacing: 0.025em;
+  }
+
+  .tracking-wider {
+    letter-spacing: 0.05em;
+  }
+
+  /* Text decoration utilities */
+  .underline-offset-4 {
+    text-underline-offset: 4px;
+  }
+
+  .underline-offset-8 {
+    text-underline-offset: 8px;
+  }
+
+  /* Text shadow utilities */
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Section padding utility */
+  .section-padding {
+    @apply py-16 md:py-24;
+  }
+}
+
+/* Background patterns and decorations */
+.hexagon-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15L30 0z' fill-opacity='0.05' fill='%23000000' fill-rule='evenodd'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}
+
+.honeycomb-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l15 26 15-26H30zM0 0h30L15 26 0 0zm15 26l15 26-30 0 15-26zM60 0L45 26l15 26V0zM30 52l15-26 15 26H30z' fill='%23F59E0B' fillOpacity='0.1' fillRule='evenodd'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}
+
+.dots-bg {
+  background-image: radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* Improve accessibility with better focus states */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Improve scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.7);
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Focus ring utility */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2;
+}
+
+/* Improve text readability */
+body {
+  @apply text-foreground antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Improve dark mode contrast */
+.dark {
+  color-scheme: dark;
+}
