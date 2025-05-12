@@ -34,7 +34,7 @@ import {
   TrendingUp,
   PieChart,
 } from "lucide-react";
-import { DashboardSidebar } from "./sidebar";
+import { DashboardSidebar, SidebarProvider, useSidebar } from "./sidebar";
 import { Sidebar, SidebarInset } from "@/components/ui/sidebar";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -60,13 +60,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
+
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -1679,7 +1674,7 @@ function DashboardLayout() {
   };
 
   return (
-    <>
+    <SidebarProvider>
       <WalletConnectModal />
       <TokenSwapModal />
       <SettingsModal />
@@ -1719,7 +1714,7 @@ function DashboardLayout() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                   >
-                    Welcome to Bumblebee
+                    Welcome abroad!
                   </motion.h1>
                   <motion.p
                     className="text-gray-500 dark:text-gray-400 flex items-center gap-2"
@@ -1727,68 +1722,9 @@ function DashboardLayout() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
                   >
-                    Your AI-powered social finance dashboard
+                    Dive into AI-powered social finance with Bumblebee
                     <Badge variant="secondary">Beta</Badge>
                   </motion.p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="relative"
-                          onClick={() => handleOpenModal("notifications")}
-                          aria-label={`Notifications, ${unreadNotificationsCount} unread`}
-                        >
-                          <Bell className="h-5 w-5" />
-                          {unreadNotificationsCount > 0 && (
-                            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center">
-                              {unreadNotificationsCount}
-                            </span>
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Notifications</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenModal("settings")}
-                          aria-label="Open settings"
-                        >
-                          <Settings className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Settings</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="relative"
-                          onClick={() => handleOpenModal("createWallet")}
-                        >
-                          <PiggyBank className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Create Wallet</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`${THEME.glassmorphism.card} flex items-center gap-2`}
-                    onClick={() => handleOpenModal("walletConnect")}
-                    aria-label="Connect wallet"
-                  >
-                    <Wallet className="h-4 w-4 text-amber-500" />
-                    Connect
-                  </Button>
                 </div>
               </div>
 
@@ -2213,7 +2149,7 @@ function DashboardLayout() {
           </motion.main>
         </SidebarInset>
       </Sidebar>
-    </>
+    </SidebarProvider>
   );
 }
 

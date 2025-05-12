@@ -1,14 +1,17 @@
 "use client"
 
-import { useState, useEffect, createContext, useContext } from "react"
+import { useState, useEffect, createContext, useContext, lazy, Suspense, useCallback, useMemo } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ChevronLeft,
   ChevronRight,
@@ -28,14 +31,29 @@ import {
   BookOpen,
   Moon,
   X,
+  ExternalLink,
+  CreditCard,
+  PanelLeft,
+  PanelLeftClose,
+  Sun,
+  Bell,
+  Clock,
+  Sparkles,
+  Coins,
+  ArrowRightLeft,
+  PiggyBank,
+  BarChart,
+  BadgeDollarSign,
+  MessageSquare,
+  Activity,
+  ListChecks,
+  PlayCircle,
+  Gift,
+  User2,
+  Plus,
 } from "lucide-react"
 
-// Auth hook interface
-interface AuthHook {
-  user?: { name: string; [key: string]: any }
-  address?: string
-  disconnect: () => void
-}
+import { NavItem, AuthHook, SidebarContextType } from "./sidebar-types"
 
 // Mock useAuth hook
 const useAuth = (): AuthHook => {
@@ -46,14 +64,7 @@ const useAuth = (): AuthHook => {
   }
 }
 
-// Sidebar Context
-type SidebarContextType = {
-  isCollapsed: boolean
-  toggleSidebar: () => void
-  isDarkMode: boolean
-  toggleDarkMode: () => void
-}
-
+// Create sidebar context
 const SidebarContext = createContext<SidebarContextType>({
   isCollapsed: false,
   toggleSidebar: () => {},
@@ -61,9 +72,11 @@ const SidebarContext = createContext<SidebarContextType>({
   toggleDarkMode: () => {},
 })
 
+// Export the useSidebar hook for components to access the sidebar context
 export const useSidebar = () => useContext(SidebarContext)
 
-export function SidebarProvider({ children }: { children: React.ReactNode }) {
+// Export the SidebarProvider to be used in dashboard-layout.tsx
+export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
 
@@ -118,14 +131,21 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-type NavItem = {
-  title: string
-  href: string
-  icon: React.ReactNode
-  badge?: string
-  badgeColor?: string
-  isPinned?: boolean
-}
+// Lazy-loaded components
+const LazyMobileSidebar = lazy(() => import("./sidebar-components/mobile-sidebar").then(mod => ({ default: mod.MobileSidebar })))
+const LazySearchResults = lazy(() => import("./sidebar-components/search-results").then(mod => ({ default: mod.SearchResults })))
+
+// Loading fallbacks
+const SidebarSkeleton = () => (
+  <div className="animate-pulse space-y-4 p-4">
+    <div className="h-8 w-3/4 bg-muted rounded"></div>
+    <div className="space-y-2">
+      {Array(5).fill(0).map((_, i) => (
+        <div key={i} className="h-10 bg-muted rounded"></div>
+      ))}
+    </div>
+  </div>
+)
 
 export function DashboardSidebar() {
   const pathname = usePathname()
@@ -136,6 +156,7 @@ export function DashboardSidebar() {
   const [recentPages, setRecentPages] = useState<NavItem[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const { user, address, disconnect } = useAuth()
 
@@ -163,24 +184,36 @@ export function DashboardSidebar() {
 
   // Load pinned and recent pages from localStorage
   useEffect(() => {
-    try {
-      const savedPinnedItems = localStorage.getItem("pinnedItems")
-      if (savedPinnedItems) {
-        setPinnedItems(JSON.parse(savedPinnedItems))
+    const loadSavedState = async () => {
+      setIsLoading(true)
+      try {
+        // Simulate network delay for demonstration purposes
+        // In a real app, this would be actual data fetching
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        const savedPinnedItems = localStorage.getItem("pinnedItems")
+        if (savedPinnedItems) {
+          setPinnedItems(JSON.parse(savedPinnedItems))
+        }
+        
+        const savedRecentPages = localStorage.getItem("recentPages")
+        if (savedRecentPages) {
+          setRecentPages(JSON.parse(savedRecentPages))
+        }
+      } catch (error) {
+        console.error("Failed to load saved navigation state:", error)
+      } finally {
+        setIsLoading(false)
       }
-      const savedRecentPages = localStorage.getItem("recentPages")
-      if (savedRecentPages) {
-        setRecentPages(JSON.parse(savedRecentPages))
-      }
-    } catch (error) {
-      console.error("Failed to load saved navigation state:", error)
     }
+    
+    loadSavedState()
   }, [])
 
   // Track recent pages
   useEffect(() => {
-    if (pathname) {
-      const currentPage = allNavItems.find((item) => item.href === pathname)
+    if (pathname && !isLoading) {
+      const currentPage = allNavItems.find((item) => item.href === pathname && !item.isExternal && !item.isDisabled)
       if (currentPage) {
         setRecentPages((prev) => {
           const filtered = prev.filter((item) => item.href !== pathname)
@@ -194,7 +227,7 @@ export function DashboardSidebar() {
         })
       }
     }
-  }, [pathname])
+  }, [pathname, isLoading])
 
   // Updated nav items
   const allNavItems: NavItem[] = [
@@ -321,80 +354,142 @@ export function DashboardSidebar() {
   }
 
   const NavItem = ({ item, showPin = true }: { item: NavItem; showPin?: boolean }) => {
-    const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+    const isActive = pathname === item.href || (!item.isExternal && item.href !== "/dashboard" && pathname.startsWith(item.href))
     const isPinned = pinnedItems.some((pinned) => pinned.href === item.href)
+    
+    // Determine if the item should be rendered as a link or button
+    const isLink = !item.isDisabled && (item.href || item.onClick)
+    
+    // Create the content of the nav item
+    const navItemContent = (
+      <motion.div
+        whileHover={!item.isDisabled ? { scale: 1.05 } : {}}
+        whileTap={!item.isDisabled ? { scale: 0.95 } : {}}
+        className="flex items-center gap-3 w-full"
+      >
+        <motion.div
+          variants={iconVariants}
+          initial={false}
+          animate={isCollapsed ? "collapsed" : "expanded"}
+          className={cn(
+            "transition-colors flex items-center justify-center w-6 h-6",
+            isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary",
+            item.isDisabled && "opacity-50"
+          )}
+        >
+          {item.icon}
+        </motion.div>
+
+        <AnimatePresence initial={false}>
+          {!isCollapsed && (
+            <motion.span
+              variants={itemVariants}
+              initial="collapsed"
+              animate="expanded"
+              exit="collapsed"
+              className="text-sm flex-1 whitespace-nowrap overflow-hidden font-medium"
+            >
+              {item.title}
+              {item.isExternal && (
+                <ExternalLink className="ml-1 inline h-3 w-3" />
+              )}
+            </motion.span>
+          )}
+        </AnimatePresence>
+
+        {!isCollapsed && item.badge && (
+          <motion.span
+            variants={badgeVariants}
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+            className={cn(
+              "text-xs px-1.5 py-0.5 rounded-full font-medium",
+              item.badgeColor || "bg-muted text-muted-foreground",
+            )}
+          >
+            {item.badge}
+          </motion.span>
+        )}
+
+        {isActive && (
+          <motion.div
+            className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary"
+            layoutId="activeNavIndicator"
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          />
+        )}
+      </motion.div>
+    )
 
     return (
       <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex items-center relative group">
-              <Link
-                href={item.href}
-                prefetch={true}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 hover:bg-primary/10 group relative flex-grow",
-                  isActive
-                    ? "bg-primary/15 dark:bg-primary/20 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 w-full"
-                >
-                  <motion.div
-                    variants={iconVariants}
-                    initial={false}
-                    animate={isCollapsed ? "collapsed" : "expanded"}
+              {isLink ? (
+                item.isExternal ? (
+                  // External link
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (item.onClick) {
+                        e.preventDefault()
+                        item.onClick()
+                      }
+                    }}
                     className={cn(
-                      "transition-colors flex items-center justify-center w-6 h-6",
-                      isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary",
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 hover:bg-primary/10 group relative flex-grow",
+                      isActive
+                        ? "bg-primary/15 dark:bg-primary/20 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {item.icon}
-                  </motion.div>
-
-                  <AnimatePresence initial={false}>
-                    {!isCollapsed && (
-                      <motion.span
-                        variants={itemVariants}
-                        initial="collapsed"
-                        animate="expanded"
-                        exit="collapsed"
-                        className="text-sm flex-1 whitespace-nowrap overflow-hidden font-medium"
-                      >
-                        {item.title}
-                      </motion.span>
+                    {navItemContent}
+                  </a>
+                ) : (
+                  // Internal link with Next.js Link
+                  <Link
+                    href={item.href}
+                    prefetch={true}
+                    onClick={(e) => {
+                      if (item.onClick) {
+                        e.preventDefault()
+                        item.onClick()
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 hover:bg-primary/10 group relative flex-grow",
+                      isActive
+                        ? "bg-primary/15 dark:bg-primary/20 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
-                  </AnimatePresence>
-
-                  {!isCollapsed && item.badge && (
-                    <motion.span
-                      variants={badgeVariants}
-                      initial="collapsed"
-                      animate="expanded"
-                      exit="collapsed"
-                      className={cn(
-                        "text-xs px-1.5 py-0.5 rounded-full font-medium",
-                        item.badgeColor || "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {item.badge}
-                    </motion.span>
+                  >
+                    {navItemContent}
+                  </Link>
+                )
+              ) : (
+                // Disabled or button-only item
+                <div
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 group relative flex-grow",
+                    item.isDisabled
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-primary/10 cursor-pointer text-muted-foreground hover:text-foreground",
                   )}
-
-                  {isActive && (
-                    <motion.div
-                      className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary"
-                      layoutId="activeNavIndicator"
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </motion.div>
-              </Link>
-              {!isCollapsed && showPin && (
+                  onClick={() => {
+                    if (!item.isDisabled && item.onClick) {
+                      item.onClick()
+                    }
+                  }}
+                >
+                  {navItemContent}
+                </div>
+              )}
+              
+              {!isCollapsed && showPin && !item.isDisabled && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -413,9 +508,11 @@ export function DashboardSidebar() {
               )}
             </div>
           </TooltipTrigger>
-          {рев
+          
+          {isCollapsed && (
             <TooltipContent side="right" className="flex items-center gap-2 bg-card border border-border shadow-lg rounded-lg">
               {item.title}
+              {item.isExternal && <ExternalLink className="ml-1 h-3 w-3" />}
               {item.badge && (
                 <span
                   className={cn(
@@ -433,16 +530,34 @@ export function DashboardSidebar() {
     )
   }
 
-  const MobileToggle = () => (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="md:hidden fixed bottom-4 right-4 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg z-50 hover:bg-primary/90"
-      onClick={() => setIsMobileMenuOpen(true)}
-    >
-      <LayoutDashboard className="h-5 w-5" />
-    </Button>
-  )
+  // Error boundary component for lazy-loaded components
+  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+    const [hasError, setHasError] = useState(false)
+
+    useEffect(() => {
+      const handleError = () => setHasError(true)
+      window.addEventListener('error', handleError)
+      return () => window.removeEventListener('error', handleError)
+    }, [])
+
+    if (hasError) {
+      return (
+        <div className="p-4 text-center">
+          <p className="text-sm text-muted-foreground">Something went wrong.</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+            onClick={() => setHasError(false)}
+          >
+            Try again
+          </Button>
+        </div>
+      )
+    }
+
+    return <>{children}</>
+  }
 
   const DesktopSidebar = () => (
     <motion.div
@@ -454,52 +569,25 @@ export function DashboardSidebar() {
         isDarkMode && "dark",
       )}
     >
-      <SidebarContent />
+      {isLoading ? <SidebarSkeleton /> : <SidebarContent />}
     </motion.div>
   )
 
-  const MobileSidebar = () => (
-    <>
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial="closed"
-            animate="open"
-            exit="closed"
-            variants={overlayVariants}
-            className="fixed inset-0 bg-black z-30 md:hidden pointer-events-auto"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial="closed"
-            animate="open"
-            exit="closed"
-            variants={mobileMenuVariants}
-            className="fixed inset-y-0 left-0 w-[280px] bg-card border-r z-40 md:hidden"
-          >
-            <div className="absolute right-2 top-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-primary/10"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <SidebarContent />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <MobileToggle />
-    </>
-  )
+  // Function to add visited pages to recent pages
+  const addToRecentPages = (item: NavItem) => {
+    if (!item.isDisabled && !item.isExternal) {
+      setRecentPages((prev) => {
+        const filtered = prev.filter((page) => page.href !== item.href)
+        const newRecentPages = [item, ...filtered].slice(0, 5)
+        try {
+          localStorage.setItem("recentPages", JSON.stringify(newRecentPages))
+        } catch (error) {
+          console.error("Failed to save recent pages:", error)
+        }
+        return newRecentPages
+      })
+    }
+  }
 
   const SidebarContent = () => (
     <>
@@ -531,7 +619,7 @@ export function DashboardSidebar() {
             {!isCollapsed && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }
+                animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
               >
@@ -545,7 +633,7 @@ export function DashboardSidebar() {
                   <span className="sr-only">Toggle theme</span>
                 </Button>
               </motion.div>
-            )}
+  )}
           </AnimatePresence>
           <Button
             variant="ghost"
@@ -558,7 +646,7 @@ export function DashboardSidebar() {
           </Button>
         </div>
       </div>
-
+        
       <AnimatePresence initial={false}>
         {!isCollapsed && (
           <motion.div
@@ -755,7 +843,28 @@ export function DashboardSidebar() {
   return (
     <>
       <DesktopSidebar />
-      <MobileSidebar />
+      <ErrorBoundary>
+        <Suspense fallback={<div className="md:hidden fixed bottom-4 right-4 h-12 w-12 rounded-full bg-primary/50 animate-pulse"></div>}>
+          {isMobileMenuOpen && (
+            <LazyMobileSidebar
+              isMobileMenuOpen={isMobileMenuOpen}
+              setIsMobileMenuOpen={setIsMobileMenuOpen}
+              overlayVariants={overlayVariants}
+              mobileMenuVariants={mobileMenuVariants}
+              SidebarContent={SidebarContent}
+            />
+          )}
+        </Suspense>
+      </ErrorBoundary>
+      {/* Mobile toggle button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden fixed bottom-4 right-4 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg z-50 hover:bg-primary/90"
+        onClick={() => setIsMobileMenuOpen(true)}
+      >
+        <LayoutDashboard className="h-5 w-5" />
+      </Button>
     </>
   )
 }
