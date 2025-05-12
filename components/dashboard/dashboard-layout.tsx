@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Activity,
@@ -100,7 +101,7 @@ const THEME = {
   },
   colors: {
     primary: {
-      gradient: "from-amber-400  to-amber-200",
+      gradient: "from-amber-300 via-yellow-500 to-amber-400",
       light: "bg-amber-500",
       dark: "bg-amber-600",
       text: "text-amber-500",
@@ -482,6 +483,7 @@ const CreateWalletModal = () => {
 
 // DashboardLayout component
 function DashboardLayout() {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
@@ -1821,12 +1823,16 @@ function DashboardLayout() {
                 {/* Left column */}
                 <div className="lg:col-span-2 space-y-6">
                   {/* AI Smart Wallet */}
+                  <div 
+                    className="cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                    onClick={() => router.push('/dashboard/wallet')}
+                  >
                   <Card
                     title="AI Smart Wallet"
                     variant="gradient"
                     icon={<Zap className="h-5 w-5 text-white" />}
                   >
-                    <CardContent className="space-y-4 amber-400">
+                    <CardContent className="space-y-4">
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="text-sm text-white/80">Active Wallet</p>
@@ -1892,6 +1898,7 @@ function DashboardLayout() {
                       </Button>
                     </CardContent>
                   </Card>
+                  </div>
 
                   {/* Recent Activity */}
                   <Card
@@ -2103,24 +2110,6 @@ function DashboardLayout() {
                   </Card>
                 </div>
               </div>
-
-              {/* Footer */}
-              <footer className="mt-12 text-center text-gray-500 dark:text-gray-400 text-sm">
-                <p>
-                  Powered by <span className="font-medium">Bumblebee</span> • © 2025 All rights reserved
-                </p>
-                <div className="flex justify-center gap-4 mt-2">
-                  <a href="#" className="hover:text-amber-500">
-                    Terms
-                  </a>
-                  <a href="#" className="hover:text-amber-500">
-                    Privacy
-                  </a>
-                  <a href="#" className="hover:text-amber-500">
-                    Support
-                  </a>
-                </div>
-              </footer>
             </div>
           </motion.main>
         </SidebarInset>
