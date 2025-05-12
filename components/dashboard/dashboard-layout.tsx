@@ -100,7 +100,7 @@ const THEME = {
   },
   colors: {
     primary: {
-      gradient: "from-amber-500 via-yellow-500 to-amber-400",
+      gradient: "from-amber-400  to-amber-200",
       light: "bg-amber-500",
       dark: "bg-amber-600",
       text: "text-amber-500",
@@ -1685,12 +1685,27 @@ function DashboardLayout() {
       <TransactionDetailsModal />
       <CreateWalletModal />
 
+      <style jsx global>{`
+        :root {
+          --sidebar-width: 280px;
+        }
+        .dashboard-content {
+          margin-left: var(--sidebar-width);
+          width: calc(100% - var(--sidebar-width));
+        }
+        @media (max-width: 768px) {
+          .dashboard-content {
+            margin-left: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
       <Sidebar defaultCollapsed={false}>
         <DashboardSidebar />
-        <SidebarInset>
+        <SidebarInset className="transition-all duration-300 dashboard-content">
           <motion.main
             ref={mainContentRef}
-            className="flex-1 p-4 md:p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen"
+            className="flex-1 p-4 md:p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-all duration-300"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -1729,128 +1744,89 @@ function DashboardLayout() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatBox
-                  title="Portfolio Value"
-                  value={`${totalBalance.toLocaleString()} XDC`}
-                  icon={PiggyBank}
-                  gradient={THEME.colors.primary.gradient}
-                  trend={{ value: 5.2, isPositive: true }}
-                  index={0}
-                />
-                <StatBox
-                  title="Active Subscriptions"
-                  value={`${subscriptions.length}`}
-                  icon={ListChecks}
-                  gradient={THEME.colors.secondary.gradient}
-                  index={1}
-                />
-                <StatBox
-                  title="Group Tabs"
-                  value={`${groupTabs.length} Active`}
-                  icon={Users}
-                  gradient={THEME.colors.success.gradient}
-                  index={2}
-                />
-                <StatBox
-                  title="AI Suggestions"
-                  value="3 New"
-                  icon={MessageSquare}
-                  gradient={THEME.colors.accent.gradient}
-                  trend={{ value: 2, isPositive: true }}
-                  index={3}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 px-4 sm:px-0">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-xl"
+                >
+                  <StatBox
+                    title="Portfolio Value"
+                    value={`${totalBalance.toLocaleString()} XDC`}
+                    icon={PiggyBank}
+                    gradient={THEME.colors.primary.gradient}
+                    trend={{ value: 5.2, isPositive: true }}
+                    index={0}
+                    aria-label={`Portfolio Value: ${totalBalance.toLocaleString()} XDC, trending up by 5.2%`}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-xl"
+                >
+                  <StatBox
+                    title="Active Subscriptions"
+                    value={`${subscriptions.length}`}
+                    icon={ListChecks}
+                    gradient={THEME.colors.secondary.gradient}
+                    index={1}
+                    aria-label={`Active Subscriptions: ${subscriptions.length}`}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-xl"
+                >
+                  <StatBox
+                    title="Group Tabs"
+                    value={`${groupTabs.length} Active`}
+                    icon={Users}
+                    gradient={THEME.colors.success.gradient}
+                    index={2}
+                    aria-label={`Group Tabs: ${groupTabs.length} Active`}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-xl"
+                >
+                  <StatBox
+                    title="AI Suggestions"
+                    value="3 New"
+                    icon={MessageSquare}
+                    gradient={THEME.colors.accent.gradient}
+                    trend={{ value: 2, isPositive: true }}
+                    index={3}
+                    aria-label="AI Suggestions: 3 New, trending up by 2"
+                  />
+                </motion.div>
               </div>
-
               {/* Main content grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left column */}
                 <div className="lg:col-span-2 space-y-6">
-                  {/* Portfolio Overview */}
-                  <Card
-                    title="Portfolio Overview"
-                    variant="glass"
-                    icon={<PiggyBank className="h-5 w-5 text-blue-500" />}
-                  >
-                    <div className="flex justify-between mb-4">
-                      <div>
-                        <motion.h4
-                          className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2, duration: 0.5 }}
-                        >
-                          {totalBalance.toLocaleString()} XDC
-                        </motion.h4>
-                        <span className="text-green-500 text-sm font-medium flex items-center">
-                          <motion.div
-                            initial={{ rotate: -45 }}
-                            animate={{ rotate: 0 }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            <ArrowUpRight className="h-3 w-3 mr-1 inline" />
-                          </motion.div>
-                          +5.2% (24h)
-                        </span>
-                      </div>
-                      <Tabs defaultValue={timeframe} className="w-auto">
-                        <TabsList className={THEME.glassmorphism.card}>
-                          {["1D", "1W", "1M", "1Y"].map((t) => (
-                            <TabsTrigger
-                              key={t}
-                              value={t}
-                              onClick={() => setTimeframe(t)}
-                              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white"
-                              aria-label={`View portfolio for ${t}`}
-                            >
-                              {t}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <PortfolioChart />
-                    <div className="mt-4 flex justify-between">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group"
-                        onClick={() => handleOpenModal("tokenSwap")}
-                        aria-label="Swap tokens"
-                      >
-                        <motion.div
-                          className="mr-1"
-                          whileHover={{ rotate: 180 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <ArrowRightLeft className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
-                        </motion.div>
-                        <span className="text-blue-500 group-hover:text-blue-600">Swap Tokens</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group"
-                        aria-label="View portfolio details"
-                      >
-                        <span className="text-blue-500 group-hover:text-blue-600">View Details</span>
-                        <motion.div
-                          className="ml-1"
-                          whileHover={{ x: 3 }}
-                          transition={{ duration: 0.2, repeat: Infinity, repeatType: "mirror" }}
-                        >
-                          <ArrowUpRight className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
-                        </motion.div>
-                      </Button>
-                    </div>
-                  </Card>
                   {/* AI Smart Wallet */}
                   <Card
                     title="AI Smart Wallet"
                     variant="gradient"
                     icon={<Zap className="h-5 w-5 text-white" />}
                   >
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 amber-400">
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="text-sm text-white/80">Active Wallet</p>

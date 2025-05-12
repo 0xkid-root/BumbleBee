@@ -326,6 +326,16 @@ export function DashboardSidebar() {
       transition: { type: "spring", stiffness: 300, damping: 30 },
     },
   }
+  
+  // Update document with a CSS variable for sidebar width
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty(
+        '--sidebar-width', 
+        isCollapsed ? '70px' : '280px'
+      );
+    }
+  }, [isCollapsed]);
 
   const mobileMenuVariants = {
     closed: { x: "-100%", transition: { type: "spring", stiffness: 400, damping: 40 } },
@@ -565,9 +575,12 @@ export function DashboardSidebar() {
       initial={false}
       animate={isCollapsed ? "collapsed" : "expanded"}
       className={cn(
-        "hidden md:flex flex-col border-r bg-card h-screen shadow-md z-20 fixed left-0 top-0",
+        "hidden md:flex flex-col border-r bg-card h-screen shadow-md z-20 fixed left-0 top-0 transition-all duration-300",
         isDarkMode && "dark",
       )}
+      style={{
+        width: isCollapsed ? "70px" : "280px"
+      }}
     >
       {isLoading ? <SidebarSkeleton /> : <SidebarContent />}
     </motion.div>
