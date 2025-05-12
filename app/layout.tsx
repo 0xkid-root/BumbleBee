@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { Inter, Montserrat, Fira_Code } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Provider } from "@/lib/Provider"
+import { Toaster } from "@/components/ui/sonner"
 
 // Define fonts
 const inter = Inter({
@@ -41,9 +43,12 @@ export default function RootLayout({
       className={`${inter.variable} ${montserrat.variable} ${firaCode.variable}`}
     >
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
-        </ThemeProvider>
+        <Provider initialState={undefined}>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+            {children}
+            <Toaster position="bottom-right" />
+          </ThemeProvider>
+        </Provider>
       </body>
     </html>
   )

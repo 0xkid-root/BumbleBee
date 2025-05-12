@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sparkles, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { AnimatedList } from "@/components/ui/animated-list"
+import { useState } from "react"
 
 type Insight = {
   id: string
@@ -45,6 +46,8 @@ const insights: Insight[] = [
 ]
 
 export function AiInsights() {
+  const [selectedInsight, setSelectedInsight] = useState<string | null>(null)
+
   const getInsightIcon = (type: Insight["type"], priority: Insight["priority"]) => {
     const priorityColorMap = {
       high: type === "alert" ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400",
@@ -112,16 +115,52 @@ export function AiInsights() {
     return "bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/20"
   }
 
+  const insightVariants = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { 
+      opacity: 1, 
+      scale: 1,
+      transition: { 
+        duration: 0.3,
+        ease: "easeOut"
+      }
+    },
+    hover: { 
+      scale: 1.02,
+      transition: { 
+        duration: 0.2,
+        ease: "easeInOut"
+      }
+    },
+    tap: { 
+      scale: 0.98,
+      transition: { 
+        duration: 0.1,
+        ease: "easeInOut"
+      }
+    }
+  }
+
   const insightItems = insights.map((insight) => (
-    <div
+    <motion.div
       key={insight.id}
+      variants={insightVariants}
+      initial="initial"
+      animate="animate"
+      whileHover="hover"
+      whileTap="tap"
+      onClick={() => setSelectedInsight(selectedInsight === insight.id ? null : insight.id)}
       className={cn(
-        "rounded-lg border p-3 hover:border-primary/20 transition-all duration-300",
+        "rounded-lg border p-3 hover:border-primary/20 transition-all duration-300 cursor-pointer",
         getBackgroundClass(insight.type, insight.priority),
+        selectedInsight === insight.id && "ring-2 ring-primary/30"
       )}
     >
       <div className="flex items-start gap-3">
-        <div
+        <motion.div
+          initial={{ rotate: -10 }}
+          animate={{ rotate: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 10 }}
           className={cn(
             "mt-1 h-9 w-9 rounded-full flex items-center justify-center",
             insight.type === "alert"
@@ -132,13 +171,34 @@ export function AiInsights() {
           )}
         >
           {getInsightIcon(insight.type, insight.priority)}
-        </div>
+        </motion.div>
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
             <h4 className="font-medium">{insight.title}</h4>
             {getPriorityBadge(insight.priority)}
           </div>
           <p className="text-sm text-muted-foreground">{insight.description}</p>
+          <AnimatePresence>
+            {selectedInsight === insight.id && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mt-2 overflow-hidden"
+              >
+                {insight.action && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2 flex items-center justify-center"
+                  >
+                    {insight.action}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
           {insight.action && (
             <Button variant="link" className="mt-2 h-auto p-0 text-primary font-medium" size="sm">
               {insight.action}
@@ -147,35 +207,76 @@ export function AiInsights() {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   ))
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.4 }}
+      transition={{ 
+        duration: 0.5, 
+        delay: 0.4,
+        type: "spring",
+        stiffness: 100,
+        damping: 10
+      }}
       className="col-span-3 lg:col-span-1"
     >
-      <Card className="shadow-sm hover:shadow-md transition-all duration-300 h-full">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center text-xl">
-                <Sparkles className="mr-2 h-5 w-5 text-primary" />
-                AI Insights
-              </CardTitle>
-              <CardDescription>Personalized recommendations</CardDescription>
+      <Card 
+        className="shadow-sm hover:shadow-md transition-all duration-300 h-full overflow-hidden"
+      >
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ 
+            duration: 0.4, 
+            delay: 0.6,
+            type: "spring",
+            stiffness: 120,
+            damping: 12
+          }}
+        >
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center text-xl">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      transition: { 
+                        duration: 1.5, 
+                        repeat: Infinity,
+                        repeatDelay: 2
+                      }
+                    }}
+                  >
+                    <Sparkles className="mr-2 h-5 w-5 text-primary" />
+                  </motion.div>
+                  AI Insights
+                </CardTitle>
+                <CardDescription>Personalized recommendations</CardDescription>
+              </div>
+              <motion.div whileTap={{ scale: 0.95 }}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 text-xs gap-1"
+                >
+                  View all
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+              </motion.div>
             </div>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-              View all
-              <ArrowRight className="h-3 w-3" />
-            </Button>
-          </div>
-        </CardHeader>
+          </CardHeader>
+        </motion.div>
         <CardContent>
           <div className="space-y-3">
-            <AnimatedList items={insightItems} staggerDelay={0.15} animationType="fadeSlide" />
+            <AnimatedList 
+              items={insightItems} 
+              staggerDelay={0.15} 
+              animationType="fadeSlide" 
+            />
           </div>
         </CardContent>
       </Card>

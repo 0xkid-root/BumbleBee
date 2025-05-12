@@ -4,7 +4,8 @@ import React from "react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAccount } from "wagmi"
-import { MockAsset, ConnectWalletModalProps, ReceiveAssetModalProps, SendAssetModalProps, SwapAssetsModalProps, Asset } from "@/types/wallet"
+import { useRouter } from "next/navigation"
+import { MockAsset, Asset } from "@/types/wallet"
 import { Asset as WalletAsset } from "@/lib/store/use-wallet-store"
 import { publicClient } from "@/wagmi.config"
 import {
@@ -16,12 +17,12 @@ import {
   type MetaMaskSmartAccount,
   type DelegationStruct,
 } from "@metamask/delegation-toolkit"
-import { createWalletClient, custom, toHex, zeroAddress, type Hex, type Address } from "viem"
+import { createWalletClient, custom, toHex, zeroAddress, type Hex } from "viem"
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts"
 import { randomBytes } from "crypto"
 import { FACTORY_CONTRACT_ADDRESS, CREATE_TOKEN_SELECTOR } from "@/constants"
 import { bundler, pimlicoClient } from "@/lib/services/bundler"
-import { getDelegationStorageClient, DelegationStoreFilter } from "@/delegationStorage"
+import { getDelegationStorageClient } from "@/delegationStorage"
 import { ConnectWalletCard } from "@/components/wallet/connect-wallet-card"
 import { AssetCard } from "@/components/wallet/asset-card"
 import { SendAssetModal } from "@/components/wallet/send-asset-modal"
@@ -31,7 +32,7 @@ import { useWalletStore } from "@/lib/store/use-wallet-store"
 import { SectionTitle } from "@/components/ui/typography"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Copy, Check, Sparkles, ArrowUpDown, ArrowUp, MessageSquare, Settings, ChevronDown, PieChart, Wallet, Bell, Zap, Lightbulb, ArrowDown } from "lucide-react"
+import { Copy, Check, Sparkles, ArrowUpDown, ArrowUp, MessageSquare, Settings, ChevronDown, PieChart, Wallet, Bell, Zap, Lightbulb, ArrowDown, AlertCircle, RefreshCw } from "lucide-react"
 import { useClipboard } from "@/lib/hooks/use-clipboard"
 import { ConnectWalletModal } from "@/components/wallet/connect-wallet-modal"
 import { QRCodeSVG } from "qrcode.react"
@@ -42,6 +43,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Animation variants
@@ -86,6 +88,18 @@ const gradientVariants = {
     transition: {
       backgroundPosition: { duration: 4, repeat: Infinity, ease: "linear" },
       opacity: { duration: 0.5 }
+    }
+  }
+}
+
+const pulseVariants = {
+  pulse: {
+    scale: [1, 1.05, 1],
+    opacity: [0.7, 1, 0.7],
+    transition: {
+      duration: 2,
+      repeat: Infinity,
+      ease: "easeInOut"
     }
   }
 }
@@ -164,8 +178,20 @@ interface EthereumProvider {
 }
 
 export default function WalletPageClient(): React.ReactElement {
+  const router = useRouter()
+  // Track component loading state
+  const [isLoading, setIsLoading] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
   const { isConnected: wagmiConnected, address: wagmiAddress } = useAccount()
   const { isConnected, address, assets: walletAssets, connectWallet } = useWalletStore()
+
+  // Clear connection error when wallet connects
+  useEffect(() => {
+    if (isConnected || wagmiConnected) {
+      setConnectionError(null)
+    }
+  }, [isConnected, wagmiConnected])
+  
   // Convert mock assets to the correct Asset type format
   const assets = walletAssets && walletAssets.length > 0 ? walletAssets : mockAssets.map(asset => ({
     id: asset.id.toString(), // Ensure id is always a string
@@ -219,8 +245,12 @@ export default function WalletPageClient(): React.ReactElement {
 
   // Create delegator and AI delegate accounts
   const setupAccounts = async () => {
-    if (!wagmiConnected || !wagmiAddress) return
+    if (!wagmiConnected || !wagmiAddress) {
+      setDelegationError("Wallet not connected. Please connect your wallet first.")
+      return
+    }
 
+    setIsLoading(true)
     setIsCreatingAccounts(true)
     setDelegationError(null)
 
@@ -301,13 +331,18 @@ export default function WalletPageClient(): React.ReactElement {
       console.groupEnd()
     } finally {
       setIsCreatingAccounts(false)
+      setIsLoading(false)
     }
   }
 
   // Create delegation with caveats
   const createDelegationWithCaveats = async () => {
-    if (!delegatorAccount || !aiDelegateAccount) return
+    if (!delegatorAccount || !aiDelegateAccount) {
+      setDelegationError("Smart accounts not set up. Please set up accounts first.")
+      return
+    }
 
+    setIsLoading(true)
     setIsCreatingDelegation(true)
     setDelegationError(null)
 
@@ -340,10 +375,12 @@ export default function WalletPageClient(): React.ReactElement {
       const rootDelegation = await createDelegation({
         from: delegatorAccount.address as Hex,
         to: aiDelegateAccount.address as Hex,
-        // Use EOA implementation which is available in the toolkit
-        salt: toHex(randomBytes(8)) as Hex,
         caveats
       })
+      
+      // Manually set the salt after creation to avoid TypeScript errors
+      // @ts-ignore - We need to set the salt directly as the createDelegation options don't include it
+      rootDelegation.salt = toHex(randomBytes(8)) as Hex;
 
       // Sign the delegation using the delegator account
       console.log("Signing delegation...")
@@ -365,7 +402,8 @@ export default function WalletPageClient(): React.ReactElement {
         // Store the delegation in the delegation storage service
         try {
           console.log("Storing delegation in storage service...")
-          const storedDelegation = await delegationStorageClient.storeDelegation(signedDelegation as any)
+          const client = await delegationStorageClient
+          const storedDelegation = await client.storeDelegation(signedDelegation as any)
           console.log("Delegation stored in storage service successfully:", storedDelegation)
         } catch (storageError: any) {
           console.error("Failed to store delegation in storage service:", storageError)
@@ -400,6 +438,7 @@ export default function WalletPageClient(): React.ReactElement {
       console.groupEnd()
     } finally {
       setIsCreatingDelegation(false)
+      setIsLoading(false)
     }
   }
 
@@ -470,12 +509,28 @@ export default function WalletPageClient(): React.ReactElement {
     setInputMessage("")
   }
 
-  const handleConnectWallet = () => {
-    setIsConnectWalletModalOpen(true)
+  const handleConnectWallet = async () => {
+    try {
+      setIsLoading(true)
+      setConnectionError(null)
+      setIsConnectWalletModalOpen(true)
+      
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('MetaMask is not installed. Please install MetaMask to connect your wallet.')
+      }
+
+      await connectWallet()
+    } catch (error) {
+      console.error('Wallet connection error:', error)
+      setConnectionError(error instanceof Error ? error.message : 'Failed to connect wallet')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCloseConnectWalletModal = () => {
     setIsConnectWalletModalOpen(false)
+    setConnectionError(null)
   }
 
   const handleSendAsset = (asset: Asset) => {
@@ -545,7 +600,47 @@ export default function WalletPageClient(): React.ReactElement {
   const demoWalletAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 bg-gradient-to-br from-gray-900 to-blue-900">
+    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 bg-gradient-to-br from-gray-900 to-blue-900 relative">
+      {/* Global loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <div className="relative h-16 w-16 mb-4">
+              <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+              <div className="absolute inset-2 rounded-full border-4 border-t-transparent border-r-primary border-b-transparent border-l-transparent animate-spin animation-delay-150"></div>
+              <div className="absolute inset-4 rounded-full border-4 border-t-transparent border-r-transparent border-b-primary border-l-transparent animate-spin animation-delay-300"></div>
+            </div>
+            <p className="text-white font-medium">{isCreatingAccounts ? "Setting up smart accounts..." : isCreatingDelegation ? "Creating delegation..." : "Loading..."}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Error display */}
+      {delegationError && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-destructive/20 border border-destructive text-white p-4 rounded-lg mb-4 flex items-start"
+        >
+          <div className="flex-shrink-0 mr-3 mt-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{delegationError}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              onClick={() => setDelegationError(null)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </motion.div>
+      )}
       <motion.div
         initial="hidden"
         animate="visible"
@@ -836,17 +931,85 @@ export default function WalletPageClient(): React.ReactElement {
                                     Analyzing...
                                   </>
                                 ) : (
-                                  <>
-                                    <Sparkles className="h-4 w-4" />
-                                    Analyze with AI
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Analyze Portfolio
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Smart Wallet Setup Card */}
+        {isConnected && !delegationComplete && (
+          <motion.div variants={itemVariants} className="mb-8">
+            <Card className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-500/30 overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-white flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-blue-400" />
+                  Smart Wallet Setup
+                </CardTitle>
+                <CardDescription className="text-blue-200">
+                  Set up your AI-powered smart wallet to enable advanced features
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                        <div className="bg-blue-500/20 p-3 rounded-full">
+                          <Wallet className="h-6 w-6 text-blue-300" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">Create Smart Account</h3>
+                          <p className="text-sm text-blue-200">Deploy a smart contract wallet linked to your EOA</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="bg-blue-500/20 border-blue-500/30 text-white hover:bg-blue-500/30"
+                          onClick={setupAccounts}
+                          disabled={isCreatingAccounts || delegatorAccount !== undefined}
+                        >
+                          {delegatorAccount ? "Done" : "Setup"}
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="bg-purple-500/20 p-3 rounded-full">
+                          <Sparkles className="h-6 w-6 text-purple-300" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">Create AI Delegation</h3>
+                          <p className="text-sm text-blue-200">Enable AI assistant to perform actions on your behalf</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="bg-purple-500/20 border-purple-500/30 text-white hover:bg-purple-500/30"
+                          onClick={handleCreateDelegation}
+                          disabled={isCreatingDelegation || !delegatorAccount || delegationComplete}
+                        >
+                          {delegationComplete ? "Done" : "Setup"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {assets.map((asset) => (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  onSend={() => handleSendAsset(asset)}
+                  onReceive={() => handleReceiveAsset(asset)}
+                  onSwap={() => handleSwapAssets(asset)}
+                />
+              ))}
+            </motion.div>
                     
                     <motion.div variants={cardHoverVariants} whileHover="hover">
                       <Card className="bg-white/10 backdrop-blur-md border border-white/20">

@@ -11,7 +11,7 @@ import {
 
 const FooterSection = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [activeSection, setActiveSection] = useState(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {

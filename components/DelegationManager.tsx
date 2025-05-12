@@ -7,20 +7,17 @@ import { publicClient } from "@/wagmi.config";
 import {
   Implementation,
   toMetaMaskSmartAccount,
-  createRootDelegation,
+  createDelegation,
   createCaveatBuilder,
   getDelegationHashOffchain,
   type MetaMaskSmartAccount,
   type DelegationStruct,
+  DeleGatorEnvironment
 } from "@metamask/delegation-toolkit";
 import { createWalletClient, custom, toHex, zeroAddress } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { randomBytes } from "crypto";
 import { FACTORY_CONTRACT_ADDRESS, CREATE_TOKEN_SELECTOR } from "@/constants";
-import {
-  DelegationStorageClient,
-  DelegationStorageEnvironment,
-} from "@metamask/delegation-toolkit";
 
 import { Chat } from "./Chat";
 import { bundler, pimlicoClient } from "@/lib/services/bundler";
@@ -203,12 +200,19 @@ export function DelegationManager() {
 
       // Create root delegation with a unique salt
       console.log("Creating root delegation...");
-      const newDelegation = createRootDelegation(
-        aiDelegateAccount.address,
-        delegatorAccount.address,
-        caveats,
-        BigInt(createSalt()) // random hash to identify and not reuse the delegation
-      );
+      // Generate a salt value using createSalt
+      const saltHex = createSalt();
+      
+      // Create the delegation without the salt in the initial options
+      const newDelegation = createDelegation({
+        from: delegatorAccount.address as `0x${string}`,
+        to: aiDelegateAccount.address as `0x${string}`,
+        caveats: caveats.build()
+      });
+      
+      // Manually set the salt after creation to avoid TypeScript errors
+      // @ts-ignore - We need to set the salt directly as the createDelegation options don't include it
+      newDelegation.salt = BigInt(parseInt(saltHex.slice(2), 16)); // Convert hex to BigInt
 
       // Sign the delegation using the delegator account
       console.log("Signing delegation...");
@@ -223,13 +227,18 @@ export function DelegationManager() {
 
       console.log("Delegation signed successfully");
 
-      setDelegation(signedDelegation);
-
-      const delegationStorageClient = new DelegationStorageClient({
-        apiKey: process.env.NEXT_PUBLIC_DELEGATION_STORAGE_API_KEY!,
-        apiKeyId: process.env.NEXT_PUBLIC_DELEGATION_STORAGE_API_KEY_ID!,
-        environment: DelegationStorageEnvironment.dev,
+      setDelegation({
+        salt: signedDelegation.salt,
+        delegate: signedDelegation.delegate,
+        delegator: signedDelegation.delegator,
+        authority: signedDelegation.authority,
+        caveats: signedDelegation.caveats,
+        signature: signedDelegation.signature
       });
+
+      // Import the storage client from our local wrapper to avoid import errors
+      const { getDelegationStorageClient } = await import('@/delegationStorage');
+      const delegationStorageClient = await getDelegationStorageClient();
 
       // Store the delegation in the delegation storage service
       try {
