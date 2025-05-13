@@ -138,18 +138,23 @@ const groupTabs = [
   },
 ];
 
-export default function DashboardLayout() {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-
   return (
-    <Sidebar>
-      <DashboardContent isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-    </Sidebar>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar defaultCollapsed={false}>
+        <DashboardSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      </Sidebar>
+      <main className="flex-1 p-6 overflow-y-auto transition-all duration-300 ease-in-out">
+        {children}
+      </main>
+    </div>
   );
 }
 
-function DashboardContent({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; setIsCollapsed: (value: boolean) => void }) {
+function DashboardContent() {
   const { user } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-background">

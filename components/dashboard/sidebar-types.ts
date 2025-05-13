@@ -23,6 +23,7 @@ export interface SidebarContextType {
   toggleSidebar: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  isMobile: boolean;
 }
 
 export interface MobileSidebarProps {

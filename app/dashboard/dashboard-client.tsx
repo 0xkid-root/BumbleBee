@@ -56,6 +56,8 @@ import {
   Legend,
 } from "recharts"
 
+import { Sidebar } from "@/components/ui/sidebar"
+
 // Mock data updated for May 10, 2025
 const portfolioData = [
   { date: "Nov", value: 18000, profit: 2200 },
@@ -826,90 +828,59 @@ export function DashboardClient() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 p-4 md:p-6">
-      <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold dark:text-gray-100">Crypto Dashboard</h1>
-        <div className="flex items-center space-x-4">
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/avatar.png" alt="User avatar" />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
-
-      {isLoading ? (
-        <DashboardSkeleton />
-      ) : (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Balance"
-              value="$26,850.00"
-              description="USD equivalent"
-              icon={<Wallet className="h-5 w-5" />}
-              trend={{ isPositive: true, value: 12.5 }}
-              variant="primary"
-              showProgress
-              progressValue={75}
-              index={0}
-            />
-            <StatCard
-              title="24h Change"
-              value="+1.8%"
-              description="Portfolio growth"
-              icon={<TrendingUp className="h-5 w-5" />}
-              variant="success"
-              index={1}
-            />
-            <StatCard
-              title="Subscriptions"
-              value="2 Active"
-              description="Pro Analytics, Yield Farm"
-              icon={<CreditCard className="h-5 w-5" />}
-              variant="secondary"
-              index={2}
-            />
-            <StatCard
-              title="Social Tabs"
-              value="3 Groups"
-              description="Holiday Fund, others"
-              icon={<Users className="h-5 w-5" />}
-              variant="accent"
-              index={3}
-            />
+    <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
+      <main className="flex-1 p-6 h-screen overflow-y-auto w-full">
+        {isLoading ? (
+          <DashboardSkeleton />
+        ) : (
+          <div className="space-y-6">
+            <span className="text-lg font-semibold dark:text-gray-100">Crypto Dashboard</span>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Balance"
+                value="$26,850.00"
+                description="USD equivalent"
+                icon={<Wallet className="h-5 w-5" />}
+                trend={{ isPositive: true, value: 12.5 }}
+                variant="primary"
+                showProgress
+                progressValue={75}
+                index={0}
+              />
+              <StatCard
+                title="24h Change"
+                value="+1.8%"
+                description="Portfolio growth"
+                icon={<TrendingUp className="h-5 w-5" />}
+                variant="success"
+                index={1}
+              />
+              <StatCard
+                title="Subscriptions"
+                value="2 Active"
+                description="Pro Analytics, Yield Farm"
+                icon={<CreditCard className="h-5 w-5" />}
+                variant="secondary"
+                index={2}
+              />
+              <StatCard
+                title="Social Tabs"
+                value="3 Groups"
+                description="Holiday Fund, others"
+                icon={<Users className="h-5 w-5" />}
+                variant="accent"
+                index={3}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <PortfolioChart />
+              <TokenAllocation />
+              <RecentTransactions />
+              <AiInsights />
+            </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <PortfolioChart />
-            <TokenAllocation />
-            <RecentTransactions />
-            <AiInsights />
-          </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   )
 }

@@ -8,6 +8,8 @@ type SidebarContextType = {
   isCollapsed: boolean
   toggleSidebar: () => void
   isMobile: boolean
+  isDarkMode: boolean
+  toggleDarkMode: () => void
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
@@ -28,6 +30,14 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Sidebar({ defaultCollapsed = false, children, className, ...props }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
   const [isMobile, setIsMobile] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  useEffect(() => {
+    const savedThemeState = localStorage.getItem("darkMode")
+    const isDark = savedThemeState !== null ? (JSON.parse(savedThemeState) as boolean) : window.matchMedia("(prefers-color-scheme: dark)").matches
+    setIsDarkMode(isDark)
+    document.documentElement.classList.toggle("dark", isDark)
+  }, [])
 
   useEffect(() => {
     // Check if we're on mobile
@@ -66,8 +76,21 @@ export function Sidebar({ defaultCollapsed = false, children, className, ...prop
     setIsCollapsed(!isCollapsed)
   }
 
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const newState = !prev
+      document.documentElement.classList.toggle("dark", newState)
+      try {
+        localStorage.setItem("darkMode", JSON.stringify(newState))
+      } catch (error) {
+        console.error("Failed to save theme state:", error)
+      }
+      return newState
+    })
+  }
+
   return (
-    <SidebarContext.Provider value={{ isCollapsed, toggleSidebar, isMobile }}>
+    <SidebarContext.Provider value={{ isCollapsed, toggleSidebar, isMobile, isDarkMode, toggleDarkMode }}>
       <div className={cn("flex h-screen overflow-hidden", className)} {...props}>
         {children}
       </div>

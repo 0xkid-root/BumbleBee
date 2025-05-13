@@ -31,6 +31,8 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { debounce } from "lodash"
+import DashboardLayout from "@/components/dashboard/dashboard-layout"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 // Import types from sidebar-types.ts
 import type { NavItem, AuthHook, SidebarContextType, MobileSidebarProps, SearchResultsProps } from "./sidebar-types"
@@ -48,15 +50,14 @@ interface ErrorBoundaryState {
 const NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5 text-blue-500" aria-hidden="true" /> },
   { title: "Smart Wallet", href: "/dashboard/wallet", icon: <Wallet className="h-5 w-5 text-purple-500" aria-hidden="true" /> },
-  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5 text-orange-500" aria-hidden="true" /> },
+  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5 text-pink-500" aria-hidden="true" /> },
   { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Settings", href: "/dashboard/settings", icon: <Settings className="h-5 w-5 text-gray-500" aria-hidden="true" /> },
-  { title: "Help & Support", href: "/dashboard/help", icon: <HelpCircle className="h-5 w-5 text-teal-500" aria-hidden="true" /> },
 ]
 
 // Mock toast and useAuth
@@ -74,72 +75,113 @@ const isValidPinnedItems = (data: unknown): data is NavItem[] => {
   return Array.isArray(data) && data.every((item) => typeof item.title === "string" && typeof item.href === "string")
 }
 
-// Sidebar Context
-const SidebarContext = React.createContext<SidebarContextType & { notificationCount: number }>({
-  isCollapsed: false,
-  toggleSidebar: () => {},
-  isDarkMode: false,
-  toggleDarkMode: () => {},
-  notificationCount: 0,
-})
+// Import base Sidebar context
+import { Sidebar, useSidebar } from "@/components/ui/sidebar"
 
-export const useSidebar = () => React.useContext(SidebarContext)
+export function MainDashboardSidebar() {
+  const { isCollapsed, toggleSidebar, isMobile, isDarkMode, toggleDarkMode } = useSidebar()
+  const pathname = usePathname()
 
-export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const [notificationCount] = useState(3)
+  return (
+    <nav
+      className={cn(
+        "fixed top-0 left-0 z-20 h-full border-r bg-background transition-all duration-300",
+        isCollapsed ? "w-[70px]" : "w-[280px]"
+      )}
+    >
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex h-[60px] items-center justify-between px-4">
+          <Link href="/dashboard" className={cn("flex items-center gap-2", isCollapsed && "hidden")}>
+            <span className="text-xl font-bold">BumbleBee</span>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={toggleSidebar}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        </div>
 
-  useEffect(() => {
-    try {
-      const savedSidebarState = localStorage.getItem("sidebarCollapsed")
-      if (savedSidebarState !== null) {
-        setIsCollapsed(JSON.parse(savedSidebarState) as boolean)
-      }
+        <ScrollArea className="flex-1 px-4">
+          <div className="space-y-4">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "group flex items-center rounded-lg transition-all duration-200",
+                  isCollapsed ? "justify-center w-[48px] h-[48px] mx-auto my-1" : "gap-3 px-3 py-2 w-full",
+                  pathname === item.href
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+                tabIndex={item.badge ? -1 : 0}
+                aria-disabled={!!item.badge}
+              >
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center justify-center w-6 h-6">
+                        {item.icon}
+                      </div>
+                    </TooltipTrigger>
+                    {isCollapsed && (
+                      <TooltipContent side="right">
+                        {item.title}
+                        {item.badge && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-xs text-indigo-400 whitespace-nowrap">
+                            {item.badge}
+                          </span>
+                        )}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                {!isCollapsed && (
+                  <>
+                    <span className="flex-1">{item.title}</span>
+                    {item.badge && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-xs text-indigo-400 whitespace-nowrap">
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Link>
+            ))}
+          </div>
+        </ScrollArea>
 
-      const savedThemeState = localStorage.getItem("darkMode")
-      const isDark = savedThemeState !== null ? (JSON.parse(savedThemeState) as boolean) : window.matchMedia("(prefers-color-scheme: dark)").matches
-      setIsDarkMode(isDark)
-      document.documentElement.classList.toggle("dark", isDark)
-    } catch (error) {
-      console.error("Failed to load preferences:", error)
-      toast({ title: "Error", description: "Failed to load preferences.", variant: "destructive" })
-    }
-  }, [])
-
-  const toggleSidebar = useCallback(() => {
-    setIsCollapsed((prev) => {
-      const newState = !prev
-      try {
-        localStorage.setItem("sidebarCollapsed", JSON.stringify(newState))
-      } catch (error) {
-        console.error("Failed to save sidebar state:", error)
-        toast({ title: "Error", description: "Failed to save sidebar preferences.", variant: "destructive" })
-      }
-      return newState
-    })
-  }, [])
-
-  const toggleDarkMode = useCallback(() => {
-    setIsDarkMode((prev) => {
-      const newState = !prev
-      document.documentElement.classList.toggle("dark", newState)
-      try {
-        localStorage.setItem("darkMode", JSON.stringify(newState))
-      } catch (error) {
-        console.error("Failed to save theme state:", error)
-        toast({ title: "Error", description: "Failed to save theme preferences.", variant: "destructive" })
-      }
-      return newState
-    })
-  }, [])
-
-  const contextValue = useMemo(
-    () => ({ isCollapsed, toggleSidebar, isDarkMode, toggleDarkMode, notificationCount }),
-    [isCollapsed, toggleSidebar, isDarkMode, toggleDarkMode, notificationCount]
+        <div className="mt-auto border-t p-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleDarkMode}
+              className={cn("h-9 w-9", isCollapsed && "mx-auto")}
+            >
+              <SunMoon className="h-4 w-4" />
+            </Button>
+            {!isCollapsed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // Handle logout
+                }}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
   )
-
-  return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
 }
 
 // Lazy-loaded components
@@ -152,7 +194,7 @@ const SidebarSkeleton = () => (
     <div className="h-8 w-3/4 bg-muted rounded"></div>
     <div className="space-y-2">
       {Array(5)
-        .fill(0) 
+        .fill(0)
         .map((_, i) => (
           <div key={i} className="h-10 bg-muted rounded"></div>
         ))}
@@ -210,18 +252,40 @@ const NavItem = React.memo(
     )
 
     const navItemContent = (
-      <motion.div whileHover={!item.isDisabled ? { scale: 1.05 } : {}} whileTap={!item.isDisabled ? { scale: 0.95 } : {}} className="flex items-center gap-3 w-full">
+      <motion.div
+        whileHover={!item.isDisabled ? { scale: 1.05 } : {}}
+        whileTap={!item.isDisabled ? { scale: 0.95 } : {}}
+        className="flex items-center gap-3 w-full min-w-0"
+      >
         <motion.div className={cn("w-6 h-6", item.isDisabled && "opacity-50")}>{item.icon}</motion.div>
         <AnimatePresence>
           {!isCollapsed && (
-            <motion.span variants={itemVariants} initial="collapsed" animate="expanded" exit="collapsed" className={cn("text-sm flex-1 font-medium", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")}>
+            <motion.span
+              variants={itemVariants}
+              initial="collapsed"
+              animate="expanded"
+              exit="collapsed"
+              className={cn(
+                "text-sm flex-1 font-medium truncate",
+                isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+              )}
+            >
               {item.title}
               {item.isExternal && <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden="true" />}
             </motion.span>
           )}
         </AnimatePresence>
         {!isCollapsed && item.badge && (
-          <motion.span variants={badgeVariants} initial="collapsed" animate="expanded" exit="collapsed" className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", item.badgeColor || "bg-muted text-muted-foreground")}>
+          <motion.span
+            variants={badgeVariants}
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+            className={cn(
+              "text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap",
+              item.badgeColor || "bg-muted text-muted-foreground"
+            )}
+          >
             {item.badge}
           </motion.span>
         )}
@@ -298,7 +362,11 @@ const NavItem = React.memo(
             <TooltipContent side="right" className="flex items-center gap-2 bg-card border rounded-lg">
               {item.title}
               {item.isExternal && <ExternalLink className="ml-1 h-3 w-3" aria-hidden="true" />}
-              {item.badge && <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", item.badgeColor || "bg-muted text-muted-foreground")}>{item.badge}</span>}
+              {item.badge && (
+                <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap", item.badgeColor || "bg-muted text-muted-foreground")}>
+                  {item.badge}
+                </span>
+              )}
             </TooltipContent>
           )}
         </Tooltip>
@@ -421,7 +489,7 @@ const SidebarContent = React.memo(
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleSidebar}
+              onClick={() => toggleSidebar()}
               className="h-8 w-8 rounded-full hover:bg-primary/10"
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-expanded={!isCollapsed}
@@ -430,7 +498,7 @@ const SidebarContent = React.memo(
             </Button>
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-x-hidden">
           <div className="p-4 space-y-4" role="list">
             {!isCollapsed && (
               <div className="relative">
@@ -634,7 +702,7 @@ export function DashboardSidebar({ isCollapsed: propIsCollapsed, setIsCollapsed 
         variants={sidebarVariants}
         initial={false}
         animate={isCollapsed ? "collapsed" : "expanded"}
-        className={cn("hidden md:flex flex-col border-r bg-card h-screen shadow-md fixed left-0 top-0 will-change-[width]")}
+        className={cn("hidden md:flex flex-col border-r bg-card h-screen shadow-md will-change-[width] overflow-y-auto")}
         style={{ width: isCollapsed ? "70px" : "280px" }}
         role="complementary"
         aria-label="Sidebar"
