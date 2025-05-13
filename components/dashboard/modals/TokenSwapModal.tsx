@@ -9,9 +9,11 @@ import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
-interface TokenSwapModalProps {
+export interface TokenSwapModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",
@@ -101,7 +103,7 @@ const THEME = {
     slideInRight: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.3 } },
   },
 };
-const TokenSwapModal: React.FC<TokenSwapModalProps> = ({ onClose }) => {
+const TokenSwapModal: React.FC<TokenSwapModalProps> = ({ isOpen,onClose }) => {
   const [fromToken, setFromToken] = useState("XDC");
   const [toToken, setToToken] = useState("ETH");
   const [amount, setAmount] = useState("");

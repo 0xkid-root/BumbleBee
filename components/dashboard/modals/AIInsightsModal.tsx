@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PieChart, TrendingUp, Activity, PiggyBank, BadgeDollarSign, AlertCircle, Sparkles, ArrowRightLeft, Info, Check } from "lucide-react";
+import { PieChart, TrendingUp, Activity, PiggyBank, BadgeDollarSign, AlertCircle, Sparkles, ArrowRightLeft, Info, Check, PlusCircle, Settings2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 interface AiInsightsModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 const THEME = {
@@ -291,7 +292,7 @@ const AiInsightsModal: React.FC<AiInsightsModalProps> = ({ onClose }) => {
                   <Progress value={40} className="h-2" />
                 </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full">
-                  <Plus className="h-4 w-4 mr-2" /> Add New Savings Goal
+                  <PlusCircle className="h-4 w-4 mr-2" /> Add New Savings Goal
                 </Button>
               </div>
             </div>
@@ -306,7 +307,7 @@ const AiInsightsModal: React.FC<AiInsightsModalProps> = ({ onClose }) => {
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="outline">
-                    <Settings className="h-4 w-4 mr-2" /> Configure Auto-Save
+                    <Settings2 className="h-4 w-4 mr-2" /> Configure Auto-Save
                   </Button>
                 </div>
               </div>

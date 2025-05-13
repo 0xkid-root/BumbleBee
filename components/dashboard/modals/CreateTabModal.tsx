@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 interface CreateTabModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 const THEME = {

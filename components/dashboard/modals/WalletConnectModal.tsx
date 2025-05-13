@@ -7,8 +7,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 interface WalletConnectModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",
@@ -98,7 +100,7 @@ const THEME = {
     slideInRight: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.3 } },
   },
 };
-const WalletConnectModal: React.FC<WalletConnectModalProps> = ({ onClose }) => {
+const WalletConnectModal: React.FC<WalletConnectModalProps> = ({ isOpen, onClose }) => {
   const { toast } = useToast();
 
   const handleConnect = (wallet: string) => {
@@ -112,7 +114,7 @@ const WalletConnectModal: React.FC<WalletConnectModalProps> = ({ onClose }) => {
   const wallets = ["MetaMask", "WalletConnect", "Coinbase Wallet", "Trust Wallet"];
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(THEME.glassmorphism.dialog, "sm:max-w-md")}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

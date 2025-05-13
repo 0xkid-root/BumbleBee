@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
-import { getUserByWalletAddress, createUser, User, initializeDatabase, closeConnection } from '@/lib/idb';
+import { getUserByWalletAddress, createUser, User, initializeDatabase, closeConnection } from '@/lib/weavedb';
 import { useRouter } from 'next/navigation';
 
 export function useAuth() {

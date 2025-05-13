@@ -6,18 +6,26 @@ import { Separator } from "@/components/ui/separator";
 import { Activity, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Import Transaction interface from dashboard-layout.tsx or define it consistently
 interface Transaction {
-  id: number;
-  type: string;
-  amount: string;
-  date: string;
-  status: string;
+  id: string;
+  type: "send" | "receive" | "swap";
+  amount: number;
+  token: string;
+  timestamp: Date;
+  status: "completed" | "pending" | "failed";
+  recipient?: string;
+  sender?: string;
 }
 
-interface TransactionDetailsModalProps {
-  transaction?: Transaction;
+export interface TransactionDetailsModalProps {
+  isOpen: boolean;
   onClose: () => void;
+  walletId: string | null;
+  transactionId: string | null;
+  transactions: Transaction[];
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",
@@ -107,11 +115,60 @@ const THEME = {
     slideInRight: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.3 } },
   },
 };
-const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({ transaction, onClose }) => {
-  if (!transaction) return null;
+
+const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  walletId,
+  transactionId,
+  transactions,
+}) => {
+  // Find the transaction by transactionId
+  const transaction = transactionId
+    ? transactions.find((tx) => tx.id === transactionId)
+    : null;
+
+  // If no transaction is found or transactionId is null, show a fallback
+  if (!transaction) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className={cn(THEME.glassmorphism.dialog, "sm:max-w-md")}>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Transaction Details</DialogTitle>
+            <DialogDescription>No transaction selected or transaction not found.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              className={cn(THEME.colors.primary.light, THEME.colors.primary.hover, "text-white")}
+              onClick={onClose}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Format the amount with + or - based on type
+  const formattedAmount = `${
+    transaction.type === "send" ? "-" : transaction.type === "receive" ? "+" : ""
+  }${Math.abs(transaction.amount)} ${transaction.token}`;
+
+  // Format the timestamp
+  const formattedDate = transaction.timestamp.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  // Generate a mock transaction ID (replace with actual ID if available)
+  const mockTransactionId = `${transaction.id.slice(0, 4)}...${transaction.id.slice(-4)}`;
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(THEME.glassmorphism.dialog, "sm:max-w-md")}>
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Transaction Details</DialogTitle>
@@ -120,31 +177,41 @@ const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({ trans
         <div className="space-y-4 py-4">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Type</span>
-            <span className="font-medium">{transaction.type}</span>
+            <span className="font-medium capitalize">{transaction.type}</span>
           </div>
           <Separator />
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Amount</span>
-            <Badge variant={transaction.amount.startsWith("+") ? "secondary" : "destructive"}>
-              {transaction.amount}
+            <Badge
+              variant={transaction.type === "receive" ? "secondary" : "destructive"}
+            >
+              {formattedAmount}
             </Badge>
           </div>
           <Separator />
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Date</span>
-            <span>{transaction.date}</span>
+            <span>{formattedDate}</span>
           </div>
           <Separator />
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Status</span>
-            <Badge variant={transaction.status === "Completed" ? "outline" : "secondary"}>
+            <Badge
+              variant={
+                transaction.status === "completed"
+                  ? "outline"
+                  : transaction.status === "pending"
+                  ? "secondary"
+                  : "destructive"
+              }
+            >
               {transaction.status}
             </Badge>
           </div>
           <Separator />
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Transaction ID</span>
-            <span className="text-xs text-muted-foreground">0x3a2b...8c9d</span>
+            <span className="text-xs text-muted-foreground">{mockTransactionId}</span>
           </div>
           <div className="rounded-lg bg-muted p-4 mt-4">
             <h4 className="font-medium mb-2">Transaction Metadata</h4>

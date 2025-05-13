@@ -10,9 +10,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
-interface SettingsModalProps {
+export interface SettingsModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",
@@ -102,7 +104,7 @@ const THEME = {
     slideInRight: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.3 } },
   },
 };
-const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen,onClose }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();

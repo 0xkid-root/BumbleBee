@@ -8,16 +8,18 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Send } from "lucide-react"
 import type { useSocialPaymentsStore } from "@/lib/store/use-social-payments-store"
 
+import { Contact } from "@/lib/store/use-social-payments-store"
+
 type ContactListProps = {
-  contacts: ReturnType<typeof useSocialPaymentsStore>["contacts"]
-  onContactSelect: (contactId: string) => void
+  contacts: Contact[]
+  onSelect: (contactId: string) => void
 }
 
-export function ContactList({ contacts, onContactSelect }: ContactListProps) {
+export function ContactList({ contacts, onSelect }: ContactListProps) {
   const [searchQuery, setSearchQuery] = useState("")
 
   const filteredContacts = contacts.filter(
-    (contact) =>
+    (contact: Contact) =>
       contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contact.username.toLowerCase().includes(searchQuery.toLowerCase()),
   )
@@ -66,7 +68,7 @@ export function ContactList({ contacts, onContactSelect }: ContactListProps) {
       <ScrollArea className="h-[300px] pr-4">
         <div className="space-y-2">
           {filteredContacts.length > 0 ? (
-            filteredContacts.map((contact) => (
+            filteredContacts.map((contact: Contact) => (
               <div
                 key={contact.id}
                 className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
@@ -85,7 +87,7 @@ export function ContactList({ contacts, onContactSelect }: ContactListProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-primary"
-                  onClick={() => onContactSelect(contact.id)}
+                  onClick={() => onSelect(contact.id)}
                 >
                   <Send className="h-4 w-4" />
                   <span className="sr-only">Send payment to {contact.name}</span>

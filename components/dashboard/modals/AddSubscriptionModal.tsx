@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 interface AddSubscriptionModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 const THEME = {

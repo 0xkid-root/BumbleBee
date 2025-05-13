@@ -32,48 +32,34 @@ import {
 } from "lucide-react"
 import { debounce } from "lodash"
 
-// Types
-interface NavItem {
-  title: string
-  href?: string
-  icon: React.ReactNode
-  badge?: string
-  badgeColor?: string
-  isExternal?: boolean
-  isDisabled?: boolean
-  onClick?: () => void
+// Import types from sidebar-types.ts
+import type { NavItem, AuthHook, SidebarContextType, MobileSidebarProps, SearchResultsProps } from "./sidebar-types"
+
+// Define error boundary props and state types
+interface ErrorBoundaryProps {
+  children: React.ReactNode
 }
 
-interface AuthHook {
-  user: { name: string }
-  address: string
-  disconnect: () => void
+interface ErrorBoundaryState {
+  hasError: boolean
 }
 
-interface SidebarContextType {
-  isCollapsed: boolean
-  toggleSidebar: () => void
-  isDarkMode: boolean
-  toggleDarkMode: () => void
-  notificationCount: number
-}
-
-// Navigation Configuration
+// Navigation Configuration with colorful icons
 const NAV_ITEMS: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" aria-hidden="true" /> },
-  { title: "Smart Wallet", href: "/dashboard/wallet", icon: <Wallet className="h-5 w-5" aria-hidden="true" /> },
-  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5" aria-hidden="true" /> },
-  { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5" aria-hidden="true" /> },
-  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5" aria-hidden="true" />, badge: "Coming soon",badgeColor: "bg-white text-indigo-300" },
-  { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5" aria-hidden="true" />, badge: "Coming soon",badgeColor: "bg-white text-indigo-300" },
-  { title: "Settings", href: "/dashboard/settings", icon: <Settings className="h-5 w-5" aria-hidden="true" /> },
-  { title: "Help & Support", href: "/dashboard/help", icon: <HelpCircle className="h-5 w-5" aria-hidden="true" /> },
+  { title: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5 text-blue-500" aria-hidden="true" /> },
+  { title: "Smart Wallet", href: "/dashboard/wallet", icon: <Wallet className="h-5 w-5 text-purple-500" aria-hidden="true" /> },
+  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5 text-orange-500" aria-hidden="true" /> },
+  { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5 text-pink-500" aria-hidden="true" /> },
+  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Settings", href: "/dashboard/settings", icon: <Settings className="h-5 w-5 text-gray-500" aria-hidden="true" /> },
+  { title: "Help & Support", href: "/dashboard/help", icon: <HelpCircle className="h-5 w-5 text-teal-500" aria-hidden="true" /> },
 ]
 
-// Mock toast and useAuth (unchanged)
+// Mock toast and useAuth
 const toast = ({ title, description, variant }: { title: string; description: string; variant: string }) => {
   console.log(`Toast: ${title} - ${description} (${variant})`)
 }
@@ -88,8 +74,8 @@ const isValidPinnedItems = (data: unknown): data is NavItem[] => {
   return Array.isArray(data) && data.every((item) => typeof item.title === "string" && typeof item.href === "string")
 }
 
-// Sidebar Context (unchanged)
-const SidebarContext = React.createContext<SidebarContextType>({
+// Sidebar Context
+const SidebarContext = React.createContext<SidebarContextType & { notificationCount: number }>({
   isCollapsed: false,
   toggleSidebar: () => {},
   isDarkMode: false,
@@ -156,17 +142,17 @@ export const SidebarProvider = ({ children }: { children: React.ReactNode }) => 
   return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
 }
 
-// Lazy-loaded components (unchanged)
+// Lazy-loaded components
 const LazyMobileSidebar = lazy(() => import("./sidebar-components/mobile-sidebar").then((mod) => ({ default: mod.MobileSidebar })))
 const LazySearchResults = lazy(() => import("./sidebar-components/search-results").then((mod) => ({ default: mod.SearchResults })))
 
-// Skeleton Component (unchanged)
+// Skeleton Component
 const SidebarSkeleton = () => (
   <div className="animate-pulse space-y-4 p-4" role="status" aria-label="Loading sidebar">
     <div className="h-8 w-3/4 bg-muted rounded"></div>
     <div className="space-y-2">
       {Array(5)
-        .fill(0)
+        .fill(0) 
         .map((_, i) => (
           <div key={i} className="h-10 bg-muted rounded"></div>
         ))}
@@ -174,7 +160,7 @@ const SidebarSkeleton = () => (
   </div>
 )
 
-// Animation Variants (unchanged)
+// Animation Variants
 const sidebarVariants = {
   expanded: { width: "280px", transition: { type: "spring", stiffness: 300, damping: 30 } },
   collapsed: { width: "70px", transition: { type: "spring", stiffness: 300, damping: 30 } },
@@ -194,14 +180,14 @@ const badgeVariants = {
  * NavItem component for rendering sidebar navigation items
  */
 const NavItem = React.memo(
-  ({ item, showPin = true, isPinned = false, togglePinItem, pathname }: {
+  ({ item, showPin = true, isPinned = false, togglePinItem, pathname, isCollapsed }: {
     item: NavItem
     showPin?: boolean
-    isPinned?: boolean // Added isPinned prop
+    isPinned?: boolean
     togglePinItem?: (item: NavItem) => void
     pathname: string
+    isCollapsed: boolean
   }) => {
-    const { isCollapsed } = useSidebar()
     const isActive = pathname === item.href || (!item.isExternal && item.href !== "/dashboard" && pathname.startsWith(item.href || ""))
 
     const handlePinClick = useCallback(
@@ -225,10 +211,10 @@ const NavItem = React.memo(
 
     const navItemContent = (
       <motion.div whileHover={!item.isDisabled ? { scale: 1.05 } : {}} whileTap={!item.isDisabled ? { scale: 0.95 } : {}} className="flex items-center gap-3 w-full">
-        <motion.div className={cn("w-6 h-6", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary", item.isDisabled && "opacity-50")}>{item.icon}</motion.div>
+        <motion.div className={cn("w-6 h-6", item.isDisabled && "opacity-50")}>{item.icon}</motion.div>
         <AnimatePresence>
           {!isCollapsed && (
-            <motion.span variants={itemVariants} initial="collapsed" animate="expanded" exit="collapsed" className="text-sm flex-1 font-medium">
+            <motion.span variants={itemVariants} initial="collapsed" animate="expanded" exit="collapsed" className={cn("text-sm flex-1 font-medium", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")}>
               {item.title}
               {item.isExternal && <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden="true" />}
             </motion.span>
@@ -321,28 +307,46 @@ const NavItem = React.memo(
   }
 )
 
-// ErrorBoundary (unchanged)
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-  const [hasError, setHasError] = useState(false)
-
-  useEffect(() => {
-    const handleError = () => setHasError(true)
-    window.addEventListener("error", handleError)
-    return () => window.removeEventListener("error", handleError)
-  }, [])
-
-  if (hasError) {
-    return (
-      <div className="p-4 text-center" role="alert">
-        <p className="text-sm text-muted-foreground">Failed to load component.</p>
-        <Button variant="outline" size="sm" className="mt-2" onClick={() => setHasError(false)} aria-label="Retry loading component">
-          Retry
-        </Button>
-      </div>
-    )
+// ErrorBoundary Component
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
   }
 
-  return <>{children}</>
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Sidebar Error:', error, errorInfo)
+    toast({
+      title: "Error",
+      description: "An error occurred in the sidebar. Please try refreshing the page.",
+      variant: "destructive"
+    })
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-center" role="alert">
+          <p className="text-sm text-muted-foreground">Failed to load component.</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2" 
+            onClick={() => this.setState({ hasError: false })} 
+            aria-label="Retry loading component"
+          >
+            Retry
+          </Button>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 /**
@@ -354,8 +358,8 @@ const SidebarContent = React.memo(
     togglePinItem: (item: NavItem) => void
     searchQuery: string
     setSearchQuery: (query: string) => void
-    showSearchResults: boolean // Fixed typo from show_phase
-    setShowSearchResults: (show: boolean) => void
+    showSearchResults: boolean
+    setShowSearchResults: React.Dispatch<React.SetStateAction<boolean>>
   }) => {
     const { isCollapsed, toggleSidebar, toggleDarkMode, isDarkMode } = useSidebar()
     const pathname = usePathname()
@@ -365,10 +369,10 @@ const SidebarContent = React.memo(
 
     const categorizedNavItems = useMemo(() => {
       const main = NAV_ITEMS.filter((item) =>
-        ["/dashboard", "/dashboard/wallet", "/dashboard/portfolio", "/dashboard/subscriptions", "/dashboard/social", "/dashboard/swap", "/dashboard/education"].includes(item.href || "")
+        ["/dashboard", "/dashboard/wallet", "/dashboard/portfolio", "/dashboard/subscriptions", "/dashboard/social", "/dashboard/swap", "/dashboard/education"].includes(item.href)
       ).filter((item) => !pinnedItems.some((p) => p.href === item.href))
-      const finance = NAV_ITEMS.filter((item) => ["/dashboard/savings", "/dashboard/defi"].includes(item.href || "")).filter((item) => !pinnedItems.some((p) => p.href === item.href))
-      const utility = NAV_ITEMS.filter((item) => ["/dashboard/settings", "/dashboard/help"].includes(item.href || "")).filter((item) => !pinnedItems.some((p) => p.href === item.href))
+      const finance = NAV_ITEMS.filter((item) => ["/dashboard/savings", "/dashboard/defi"].includes(item.href)).filter((item) => !pinnedItems.some((p) => p.href === item.href))
+      const utility = NAV_ITEMS.filter((item) => ["/dashboard/settings", "/dashboard/help"].includes(item.href)).filter((item) => !pinnedItems.some((p) => p.href === item.href))
       return { main, finance, utility }
     }, [pinnedItems])
 
@@ -378,7 +382,7 @@ const SidebarContent = React.memo(
         setSearchQuery(sanitizedValue)
         setShowSearchResults(sanitizedValue.length > 0)
       }, 300),
-      []
+      [setSearchQuery, setShowSearchResults]
     )
 
     return (
@@ -443,8 +447,12 @@ const SidebarContent = React.memo(
             {showSearchResults ? (
               <Suspense fallback={<SidebarSkeleton />}>
                 <ErrorBoundary>
-                  {/* Verify SearchResults props in ./sidebar-components/search-results.tsx */}
-                  <LazySearchResults query={searchQuery} items={filteredItems} />
+                  <LazySearchResults
+                    showSearchResults={showSearchResults}
+                    filteredItems={filteredItems}
+                    setShowSearchResults={setShowSearchResults}
+                    addToRecentPages={undefined}
+                  />
                 </ErrorBoundary>
               </Suspense>
             ) : (
@@ -459,9 +467,10 @@ const SidebarContent = React.memo(
                         key={item.href}
                         item={item}
                         showPin
-                        isPinned={true} // Pinned items are always pinned
+                        isPinned={true}
                         togglePinItem={togglePinItem}
                         pathname={pathname}
+                        isCollapsed={isCollapsed}
                       />
                     ))}
                   </div>
@@ -475,9 +484,9 @@ const SidebarContent = React.memo(
                       key={item.href}
                       item={item}
                       showPin
-                      // isPinned defaults to false for non-pinned items
                       togglePinItem={togglePinItem}
                       pathname={pathname}
+                      isCollapsed={isCollapsed}
                     />
                   ))}
                 </div>
@@ -490,9 +499,9 @@ const SidebarContent = React.memo(
                       key={item.href}
                       item={item}
                       showPin
-                      // isPinned defaults to false
                       togglePinItem={togglePinItem}
                       pathname={pathname}
+                      isCollapsed={isCollapsed}
                     />
                   ))}
                 </div>
@@ -505,9 +514,9 @@ const SidebarContent = React.memo(
                       key={item.href}
                       item={item}
                       showPin
-                      // isPinned defaults to false
                       togglePinItem={togglePinItem}
                       pathname={pathname}
+                      isCollapsed={isCollapsed}
                     />
                   ))}
                 </div>
@@ -518,13 +527,13 @@ const SidebarContent = React.memo(
         <div className="p-4 border-t">
           <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center" aria-hidden="true">
-              <span className="text-xs font-medium">{user.name[0]}</span>
+              <span className="text-xs font-medium">{user?.name?.[0] ?? "U"}</span>
             </div>
             <AnimatePresence>
-              {!isCollapsed && (
+              {!isCollapsed && user && (
                 <motion.div initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }} exit={{ opacity: 0, width: 0 }} className="flex-1">
                   <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{address}</p>
+                  <p className="text-xs text-muted-foreground">{address ?? "No address"}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -547,7 +556,12 @@ const SidebarContent = React.memo(
 /**
  * Main DashboardSidebar component
  */
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  isCollapsed: boolean;
+  setIsCollapsed: (value: boolean) => void;
+}
+
+export function DashboardSidebar({ isCollapsed: propIsCollapsed, setIsCollapsed }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState("")
   const [pinnedItems, setPinnedItems] = useState<NavItem[]>([])
@@ -608,7 +622,8 @@ export function DashboardSidebar() {
     })
   }, [])
 
-  const { isCollapsed } = useSidebar()
+  // Use isCollapsed from props instead of context
+  const isCollapsed = propIsCollapsed
   useEffect(() => {
     document.documentElement.style.setProperty("--sidebar-width", isCollapsed ? "70px" : "280px")
   }, [isCollapsed])
@@ -637,15 +652,21 @@ export function DashboardSidebar() {
       </motion.div>
       <Suspense fallback={null}>
         <ErrorBoundary>
-          {/* Verify MobileSidebar props in ./sidebar-components/mobile-sidebar.tsx */}
           <LazyMobileSidebar
             isMobileMenuOpen={isMobileMenuOpen}
             setIsMobileMenuOpen={setIsMobileMenuOpen}
-            navItems={NAV_ITEMS}
-            pinnedItems={pinnedItems}
-            togglePinItem={togglePinItem}
-            variants={{ closed: { x: "-100%" }, open: { x: 0 } }}
             overlayVariants={{ closed: { opacity: 0 }, open: { opacity: 0.5 } }}
+            mobileMenuVariants={{ closed: { x: "-100%" }, open: { x: 0 } }}
+            SidebarContent={() => (
+              <SidebarContent
+                pinnedItems={pinnedItems}
+                togglePinItem={togglePinItem}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                showSearchResults={showSearchResults}
+                setShowSearchResults={setShowSearchResults}
+              />
+            )}
           />
         </ErrorBoundary>
       </Suspense>

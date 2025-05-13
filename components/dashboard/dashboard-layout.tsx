@@ -1,363 +1,256 @@
 "use client";
 
-import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, lazy, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardSidebar } from "./sidebar";
+import { Sidebar } from "@/components/ui/sidebar";
 import { motion } from "framer-motion";
-import { Sidebar, SidebarInset } from "@/components/ui/sidebar";
-import { DashboardSidebar, SidebarProvider } from "./sidebar";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { useTheme } from "next-themes";
-import {
-  Zap,
-  CreditCard,
-  Users,
-  Activity,
-  Sparkles,
-  Plus,
-  ArrowRightLeft,
-  PiggyBank,
-  ListChecks,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Activity, Wallet, TrendingUp, CreditCard, Users, Sparkles } from "lucide-react";
+import { PortfolioAnalytics } from "./components/PortfolioAnalytics";
+// Lazy load components
+const Card = lazy(() => import("./components/Card").then(mod => ({ default: mod.Card })));
+const StatBox = lazy(() => import("./components/StatBox").then(mod => ({ default: mod.StatBox })));
+const PortfolioChart = lazy(() => import("./components/PortfolioAnalytics").then(mod => ({ default: mod.PortfolioAnalytics })));
+const AIInsights = lazy(() => import("./components/AIInsights").then(mod => ({ default: mod.AIInsights })));
+const SubscriptionList = lazy(() => import("./components/SubscriptionList").then(mod => ({ default: mod.SubscriptionList })));
+const GroupTabList = lazy(() => import("./components/GroupTabList").then(mod => ({ default: mod.GroupTabList })));
+const TransactionHistory = lazy(() => import("./components/TransactionHistory").then(mod => ({ default: mod.TransactionHistory })));
+const SmartWalletFeatures = lazy(() => import("./components/SmartWalletFeatures").then(mod => ({ default: mod.SmartWalletFeatures })));
 
-// Lazy load modal components
-const WalletConnectModal = lazy(() => import("./modals/WalletConnectModal"));
-const TokenSwapModal = lazy(() => import("./modals/TokenSwapModal"));
-const SettingsModal = lazy(() => import("./modals/SettingsModal"));
-const NotificationsModal = lazy(() => import("./modals/NotificationsModal"));
-const AddSubscriptionModal = lazy(() => import("./modals/AddSubscriptionModal"));
-const CreateTabModal = lazy(() => import("./modals/CreateTabModal"));
-const AiInsightsModal = lazy(() => import("./modals/AIInsightsModal"));
-const TransactionDetailsModal = lazy(() => import("./modals/TransactionsModal"));
-const CreateWalletModal = lazy(() => import("./modals/CreateWalletModal"));
-
-// Types
-interface Wallet {
-  id: string;
-  name: string;
-  address: string;
-  balance: number;
-  token: string;
-  lastActivity: Date;
-  isActive: boolean;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-  read: boolean;
-  timestamp: Date;
-}
-
-type ModalType =
-  | "walletConnect"
-  | "tokenSwap"
-  | "settings"
-  | "notifications"
-  | "addSubscription"
-  | "createTab"
-  | "createWallet"
-  | "aiInsights"
-  | "transactionDetails";
-
-// Theme configuration
-const THEME = {
-  glassmorphism: {
-    card: "bg-white/10 backdrop-blur-sm border border-white/20 shadow-xl",
-    dialog: "bg-white/20 backdrop-blur-lg border border-white/30 shadow-2xl",
-  },
-  colors: {
-    primary: {
-      gradient: "from-amber-300 via-yellow-500 to-amber-400",
-      light: "bg-amber-500",
-      hover: "hover:bg-amber-600",
-    },
-    secondary: {
-      gradient: "from-blue-500 to-indigo-600",
-      light: "bg-blue-500",
-      hover: "hover:bg-blue-600",
-    },
-    success: {
-      gradient: "from-emerald-500 to-teal-500",
-      light: "bg-emerald-500",
-      hover: "hover:bg-emerald-600",
-    },
-    accent: {
-      gradient: "from-pink-500 to-rose-500",
-      light: "bg-pink-500",
-      hover: "hover:bg-pink-600",
-    },
-  },
-};
-
-// Dummy data (move to a separate file or API in production)
-const initialWallets: Wallet[] = [
+// Dummy data
+const recentActivity = [
   {
-    id: "1",
-    name: "Smart Wallet #1",
-    address: "0x1a2b...3c4d",
-    balance: 2450,
-    token: "XDC",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    isActive: true,
+    id: 1,
+    type: "Subscription Payment",
+    amount: "-25 XDC",
+    date: "2025-05-12T09:30:00Z",
+    status: "Completed",
+    to: "0xA3f...9E4d",
+    description: "Monthly access to Onchain Research Premium",
+  },
+  {
+    id: 2,
+    type: "Group Tab Settlement",
+    amount: "+120 XDC",
+    date: "2025-05-11T14:50:00Z",
+    status: "Completed",
+    from: "0xF81...a0B2",
+    description: "Settlement from DAO offsite expense split",
+  },
+  {
+    id: 3,
+    type: "Token Swap",
+    amount: "-50 XDC",
+    date: "2025-05-10T18:20:00Z",
+    status: "Completed",
+    pair: "XDC/USDC",
+    txHash: "0x6b2...e791",
+  },
+  {
+    id: 4,
+    type: "Airdrop Claim",
+    amount: "+10 XDC",
+    date: "2025-05-09T22:00:00Z",
+    status: "Completed",
+    source: "XDC Foundation Reward Program",
   },
 ];
 
-const initialNotifications: Notification[] = [
+const smartWalletAlerts = [
   {
-    id: "1",
-    title: "New Token Available",
-    message: "BumbleBee token is now available for trading",
+    id: 1,
+    message: "Low gas detected – Auto-topup triggered via linked reserve wallet",
     type: "info",
-    read: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
+    timestamp: "2025-05-11T08:15:00Z",
+  },
+  {
+    id: 2,
+    message: "Your DeFi portfolio was rebalanced: +3% performance improvement",
+    type: "success",
+    timestamp: "2025-05-10T23:00:00Z",
+  },
+  {
+    id: 3,
+    message: "Unusual token movement detected — review recent approvals",
+    type: "warning",
+    timestamp: "2025-05-09T16:45:00Z",
   },
 ];
 
-// Card Component
-interface CardProps {
-  title: string;
-  children: React.ReactNode;
-  variant?: "gradient" | "glass";
-  icon: React.ReactNode;
-  className?: string;
-}
+const subscriptions = [
+  {
+    id: 1,
+    name: "Onchain Research Premium",
+    amount: "25 XDC",
+    frequency: "Monthly",
+    nextPayment: "2025-06-12",
+    startedOn: "2024-12-12",
+    contractAddress: "0x9D1...4Cc3",
+  },
+  {
+    id: 2,
+    name: "DeFi Analytics Pro",
+    amount: "50 XDC",
+    frequency: "Monthly",
+    nextPayment: "2025-05-20",
+    startedOn: "2025-01-20",
+    contractAddress: "0x7B4...fE2a",
+  },
+  {
+    id: 3,
+    name: "Token Whales Tracker",
+    amount: "10 XDC",
+    frequency: "Weekly",
+    nextPayment: "2025-05-17",
+    startedOn: "2025-04-19",
+    contractAddress: "0xA2c...9Dd8",
+  },
+];
 
-const Card: React.FC<CardProps> = ({ title, children, variant = "glass", icon, className }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02 }}
-    className={cn(
-      "rounded-xl p-5 shadow-md transition-all duration-300",
-      variant === "gradient" ? `bg-gradient-to-br ${THEME.colors.primary.gradient} text-white` : THEME.glassmorphism.card,
-      className
-    )}
-    role="region"
-    aria-label={title}
-  >
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center">
-        <motion.div className="mr-3 p-2 bg-white/20 rounded-full" whileHover={{ rotate: 15 }}>
-          {icon}
-        </motion.div>
-        <h3 className="text-lg font-medium">{title}</h3>
-      </div>
-    </div>
-    {children}
-  </motion.div>
-);
+const groupTabs = [
+  {
+    id: 1,
+    name: "ETHGlobal Dubai DAO Offsite",
+    participants: 6,
+    outstandingAmount: "120 XDC",
+    status: "Active",
+    createdOn: "2025-05-05",
+    groupId: "dao-tab-001",
+  },
+  {
+    id: 2,
+    name: "Shared Trading Terminal Access",
+    participants: 4,
+    outstandingAmount: "60 XDC",
+    status: "Pending",
+    createdOn: "2025-04-28",
+    groupId: "sub-tab-002",
+  },
+  {
+    id: 3,
+    name: "Node Hosting Pool",
+    participants: 3,
+    outstandingAmount: "90 XDC",
+    status: "Settled",
+    createdOn: "2025-03-15",
+    groupId: "infra-tab-003",
+  },
+];
 
-// StatBox Component
-interface StatBoxProps {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  gradient?: string;
-  index: number;
-}
-
-const StatBox: React.FC<StatBoxProps> = ({ title, value, icon: Icon, gradient = THEME.colors.primary.gradient, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay: index * 0.1 }}
-    whileHover={{ scale: 1.05 }}
-    className={cn(
-      `rounded-xl p-5 shadow-md backdrop-blur-sm transition-all duration-300 bg-gradient-to-br ${gradient} text-white`
-    )}
-    role="region"
-    aria-label={title}
-  >
-    <div className="flex items-center">
-      <motion.div className="p-3 rounded-full mr-4 bg-white/20" whileHover={{ rotate: 15, scale: 1.1 }}>
-        <Icon className="h-6 w-6 text-white" />
-      </motion.div>
-      <div>
-        <p className="text-sm text-white/80">{title}</p>
-        <motion.p
-          className="text-xl font-bold text-white"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: index * 0.2 + 0.3, duration: 0.5 }}
-        >
-          {value}
-        </motion.p>
-      </div>
-    </div>
-  </motion.div>
-);
-
-// DashboardLayout Component
-const DashboardLayout: React.FC = () => {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { theme } = useTheme();
-
-  // State
-  const [activeModal, setActiveModal] = useState<ModalType | null>(null);
-  const [wallets, setWallets] = useState<Wallet[]>(initialWallets);
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
-  const mainContentRef = useRef<HTMLElement>(null);
-
-  // Handlers
-  const handleOpenModal = useCallback((type: ModalType) => setActiveModal(type), []);
-  const handleCloseModal = useCallback(() => setActiveModal(null), []);
-
-  const handleAddWallet = useCallback(
-    (newWallet: Wallet) => {
-      setWallets((prev) => [...prev, newWallet]);
-      toast({
-        title: "Wallet Added",
-        description: `${newWallet.name} has been added successfully`,
-      });
-      handleCloseModal();
-    },
-    [toast, handleCloseModal]
-  );
-
-  // Memoized values
-  const totalBalance = useMemo(
-    () => wallets.reduce((total, wallet) => total + wallet.balance, 0),
-    [wallets]
-  );
-
-  // Focus main content on mount
-  useEffect(() => {
-    mainContentRef.current?.focus();
-    return () => {
-      // Cleanup if needed
-    };
-  }, []);
+export default function DashboardLayout() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <SidebarProvider>
-      <Suspense fallback={<div>Loading...</div>}>
-        {activeModal === "walletConnect" && <WalletConnectModal onClose={handleCloseModal} />}
-        {activeModal === "tokenSwap" && <TokenSwapModal onClose={handleCloseModal} />}
-        {activeModal === "settings" && <SettingsModal onClose={handleCloseModal} />}
-        {activeModal === "notifications" && <NotificationsModal onClose={handleCloseModal} />}
-        {activeModal === "addSubscription" && <AddSubscriptionModal onClose={handleCloseModal} />}
-        {activeModal === "createTab" && <CreateTabModal onClose={handleCloseModal} />}
-        {activeModal === "aiInsights" && <AiInsightsModal onClose={handleCloseModal} />}
-        {activeModal === "transactionDetails" && <TransactionDetailsModal onClose={handleCloseModal} />}
-        {activeModal === "createWallet" && <CreateWalletModal onAddWallet={handleAddWallet} onClose={handleCloseModal} />}
-      </Suspense>
+    <Sidebar>
+      <DashboardContent isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+    </Sidebar>
+  );
+}
 
-      <Sidebar defaultCollapsed={false}>
-        <DashboardSidebar />
-        <SidebarInset className="transition-all duration-300">
-          <motion.main
-            ref={mainContentRef}
-            className="flex-1 p-4 md:p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen"
+function DashboardContent({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; setIsCollapsed: (value: boolean) => void }) {
+  const { user } = useAuth();
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      <DashboardSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      <main
+        className="flex-1 p-6 overflow-y-auto transition-all duration-300 ease-in-out"
+        style={{ marginLeft: isCollapsed ? '70px' : '280px' }}
+      >
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Welcome Section */}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            tabIndex={-1}
-            aria-label="Dashboard content"
           >
-            <div className="max-w-7xl mx-auto">
-              {/* Header */}
-              <div className="flex justify-between items-center mb-6">
-                <motion.h1
-                  className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-600"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  Welcome onBoard
-                </motion.h1>
-              </div>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'User'}!</h1>
+            <p className="text-muted-foreground">Here's what's happening with your portfolio today.</p>
+          </motion.div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatBox
-                  title="Portfolio Value"
-                  value={`${totalBalance.toLocaleString()} XDC`}
-                  icon={PiggyBank}
-                  gradient={THEME.colors.primary.gradient}
-                  index={0}
-                />
-                <StatBox
-                  title="Active Subscriptions"
-                  value="2"
-                  icon={ListChecks}
-                  gradient={THEME.colors.secondary.gradient}
-                  index={1}
-                />
-                <StatBox
-                  title="Group Tabs"
-                  value="2 Active"
-                  icon={Users}
-                  gradient={THEME.colors.success.gradient}
-                  index={2}
-                />
-                <StatBox
-                  title="AI Suggestions"
-                  value="3 New"
-                  icon={Sparkles}
-                  gradient={THEME.colors.accent.gradient}
-                  index={3}
-                />
-              </div>
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
+              <StatBox
+                title="Portfolio Value"
+                value="$12,345.67"
+                icon={Wallet}
+                gradient="from-blue-500 to-indigo-600"
+                trend={{ value: 12.5, isPositive: true }}
+                index={0}
+              />
+            </Suspense>
+            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
+              <StatBox
+                title="24h Change"
+                value="+$1,234.56"
+                icon={TrendingUp}
+                gradient="from-emerald-500 to-teal-600"
+                trend={{ value: 8.2, isPositive: true }}
+                index={1}
+              />
+            </Suspense>
+            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
+              <StatBox
+                title="Active Positions"
+                value="8"
+                icon={Activity}
+                gradient="from-purple-500 to-pink-500"
+                trend={{ value: 2, isPositive: true }}
+                index={2}
+              />
+            </Suspense>
+          </div>
 
-              {/* Main content */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <Card
-                    title="AI Smart Wallet"
-                    variant="gradient"
-                    icon={<Zap className="h-5 w-5 text-white" />}
-                  >
-                    <div className="space-y-4 p-5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/20 text-white hover:bg-white/30"
-                        onClick={() => handleOpenModal("createWallet")}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        New Wallet
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-                <div className="space-y-6">
-                  <Card
-                    title="Quick Actions"
-                    variant="glass"
-                    icon={<Zap className="h-5 w-5 text-amber-500" />}
-                  >
-                    <div className="grid grid-cols-2 gap-3 p-5">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                        onClick={() => handleOpenModal("tokenSwap")}
-                      >
-                        <ArrowRightLeft className="h-4 w-4" />
-                        Swap
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                        onClick={() => handleOpenModal("addSubscription")}
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        Subscription
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </motion.main>
-        </SidebarInset>
-      </Sidebar>
-    </SidebarProvider>
+          {/* Portfolio Chart */}
+          <Suspense fallback={<div className="h-96 rounded-xl bg-muted animate-pulse" />}>
+            <PortfolioChart />
+          </Suspense>
+
+          {/* Activity and Alerts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="Recent Activity" icon={<Activity className="h-5 w-5" />}>
+                <TransactionHistory transactions={recentActivity} />
+              </Card>
+            </Suspense>
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="Smart Wallet Alerts" variant="glass">
+                <SmartWalletFeatures alerts={smartWalletAlerts} />
+              </Card>
+            </Suspense>
+          </div>
+
+          {/* Subscriptions and Group Tabs */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="Active Subscriptions" icon={<CreditCard className="h-5 w-5" />}>
+                <SubscriptionList subscriptions={subscriptions} />
+              </Card>
+            </Suspense>
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="Group Tabs" icon={<Users className="h-5 w-5" />}>
+                <GroupTabList groupTabs={groupTabs} />
+              </Card>
+            </Suspense>
+          </div>
+
+          {/* AI Insights and Portfolio Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="AI Insights" icon={<Sparkles className="h-5 w-5" />}>
+                <AIInsights />
+              </Card>
+            </Suspense>
+            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
+              <Card title="Portfolio Analytics" icon={<TrendingUp className="h-5 w-5" />}>
+                <PortfolioAnalytics />
+              </Card>
+            </Suspense>
+          </div>
+        </div>
+      </main>
+    </div>
   );
-};
-
-export default DashboardLayout;
+}

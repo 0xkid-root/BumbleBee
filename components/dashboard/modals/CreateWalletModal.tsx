@@ -18,10 +18,12 @@ interface Wallet {
   isActive: boolean;
 }
 
-interface CreateWalletModalProps {
-  onAddWallet: (wallet: Wallet) => void;
+export interface CreateWalletModalProps {
+  isOpen: boolean;
   onClose: () => void;
+  onAddWallet: (newWallet: Wallet) => void;
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",

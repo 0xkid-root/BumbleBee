@@ -16,8 +16,12 @@ interface Notification {
 }
 
 interface NotificationsModalProps {
+  isOpen: boolean;
   onClose: () => void;
+  notifications: Notification[];
+  setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
 }
+
 const THEME = {
   glassmorphism: {
     light: "bg-white/70 backdrop-blur-md border border-white/20",
@@ -107,26 +111,8 @@ const THEME = {
     slideInRight: { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.3 } },
   },
 };
-const NotificationsModal: React.FC<NotificationsModalProps> = ({ onClose }) => {
+const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose, notifications, setNotifications }) => {
   const { toast } = useToast();
-  const [notifications, setNotifications] = React.useState<Notification[]>([
-    {
-      id: "1",
-      title: "New Token Available",
-      message: "BumbleBee token is now available for trading",
-      type: "info",
-      read: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    },
-    {
-      id: "2",
-      title: "Subscription Renewed",
-      message: "Your Premium Content Access subscription was renewed",
-      type: "success",
-      read: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    },
-  ]);
 
   const markAsRead = (id: string) => {
     setNotifications((prev) =>
@@ -180,11 +166,11 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ onClose }) => {
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(THEME.glassmorphism.dialog, "sm:max-w-md")}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <div classම  className="flex items-center gap-2">
+            <div   className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-amber-500" />
               Notifications
             </div>

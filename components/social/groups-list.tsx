@@ -6,12 +6,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Users, ArrowRight } from "lucide-react"
 import type { useSocialPaymentsStore } from "@/lib/store/use-social-payments-store"
 
+import { Group } from "@/lib/store/use-social-payments-store"
+
 type GroupsListProps = {
-  groups: ReturnType<typeof useSocialPaymentsStore>["groups"]
-  onGroupSelect?: (groupId: string) => void
+  groups: Group[]
+  onSelect?: (groupId: string) => void
 }
 
-export function GroupsList({ groups, onGroupSelect }: GroupsListProps) {
+export function GroupsList({ groups, onSelect }: GroupsListProps) {
   if (groups.length === 0) {
     return (
       <div className="text-center py-8">
@@ -27,7 +29,7 @@ export function GroupsList({ groups, onGroupSelect }: GroupsListProps) {
   return (
     <ScrollArea className="h-[300px] pr-4">
       <div className="space-y-3">
-        {groups.map((group) => (
+        {groups.map((group: Group) => (
           <div key={group.id} className="rounded-lg border p-3 hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <div className="font-medium">{group.name}</div>
@@ -35,7 +37,7 @@ export function GroupsList({ groups, onGroupSelect }: GroupsListProps) {
                 variant="ghost" 
                 size="icon" 
                 className="h-7 w-7"
-                onClick={() => onGroupSelect && onGroupSelect(group.id)}
+                onClick={() => onSelect && onSelect(group.id)}
               >
                 <ArrowRight className="h-4 w-4" />
                 <span className="sr-only">View group</span>
@@ -46,7 +48,7 @@ export function GroupsList({ groups, onGroupSelect }: GroupsListProps) {
 
             <div className="flex items-center justify-between">
               <div className="flex -space-x-2">
-                {group.members.slice(0, 3).map((member, index) => (
+                {group.members.slice(0, 3).map((member: { id: string; name: string; avatar: string }, index: number) => (
                   <Avatar key={index} className="h-6 w-6 border-2 border-background">
                     <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
                     <AvatarFallback className="text-[10px]">{member.name.slice(0, 2).toUpperCase()}</AvatarFallback>
