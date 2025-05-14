@@ -5,8 +5,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAccount } from "wagmi"
 import { useRouter } from "next/navigation"
-import { MockAsset, Asset } from "@/types/wallet"
-import { Asset as WalletAsset } from "@/lib/store/use-wallet-store"
+import type { Asset } from "@/lib/store/use-wallet-store"
 import { publicClient } from "@/wagmi.config"
 import {
   Implementation,
@@ -48,12 +47,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 // Animation variants
 const containerVariants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 0, scale: 0.95 },
   visible: {
     opacity: 1,
+    scale: 1,
     transition: {
       when: "beforeChildren",
-      staggerChildren: 0.1
+      staggerChildren: 0.1,
+      duration: 0.3
     }
   }
 }
@@ -75,8 +76,8 @@ const fadeInVariants = {
 const cardHoverVariants = {
   hover: {
     y: -5,
-    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.2)",
-    transition: { duration: 0.3 }
+    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.1)",
+    transition: { duration: 0.3, ease: "easeOut" }
   }
 }
 
@@ -165,10 +166,10 @@ const initialMessages = [
 ]
 
 // Mock data for assets
-const mockAssets: MockAsset[] = [
-  { id: 1, name: "Ethereum", symbol: "ETH", balance: 2.5, usdValue: 7500.00, icon: "/assets/eth.svg" },
-  { id: 2, name: "USD Coin", symbol: "USDC", balance: 4500.00, usdValue: 4500.00, icon: "/assets/usdc.svg" },
-  { id: 3, name: "Polygon", symbol: "MATIC", balance: 1200.00, usdValue: 840.00, icon: "/assets/matic.svg" }
+const mockAssets: Asset[] = [
+  { id: "1", name: "Ethereum", symbol: "ETH", amount: 2.5, value: 7500.00, price: 3000.00, change24h: 0, logo: "/assets/eth.svg" },
+  { id: "2", name: "USD Coin", symbol: "USDC", amount: 4500.00, value: 4500.00, price: 1.00, change24h: 0, logo: "/assets/usdc.svg" },
+  { id: "3", name: "Polygon", symbol: "MATIC", amount: 1200.00, value: 840.00, price: 0.70, change24h: 0, logo: "/assets/matic.svg" }
 ]
 
 // Define a minimal interface for Ethereum Provider
@@ -192,17 +193,8 @@ export default function WalletPageClient(): React.ReactElement {
     }
   }, [isConnected, wagmiConnected])
   
-  // Convert mock assets to the correct Asset type format
-  const assets = walletAssets && walletAssets.length > 0 ? walletAssets : mockAssets.map(asset => ({
-    id: asset.id.toString(), // Ensure id is always a string
-    name: asset.name,
-    symbol: asset.symbol,
-    amount: asset.balance,
-    value: asset.usdValue,
-    price: asset.usdValue / asset.balance,
-    change24h: 0, // Default value
-    logo: asset.icon,
-  })) as Asset[]
+  // Use the mock assets directly since they're already in the correct format
+  const assets: Asset[] = walletAssets && walletAssets.length > 0 ? walletAssets : mockAssets
   
   // Delegation state
   const [delegatorAccount, setDelegatorAccount] = useState<MetaMaskSmartAccount<Implementation> | undefined>(undefined)
@@ -529,55 +521,17 @@ export default function WalletPageClient(): React.ReactElement {
   }
 
   const handleCloseConnectWalletModal = () => {
-    setIsConnectWalletModalOpen(false)
     setConnectionError(null)
+    setIsConnectWalletModalOpen(false)
   }
 
   const handleSendAsset = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === 'number' ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price: asset.price || (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || ''
-    } as unknown as WalletAsset
-    setSelectedAsset(compatibleAsset)
+    setSelectedAsset(asset)
     setIsSendModalOpen(true)
   }
 
-  const handleReceiveAsset = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === 'number' ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price: asset.price || (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || ''
-    } as unknown as WalletAsset
-    setSelectedAsset(compatibleAsset)
-    setIsReceiveModalOpen(true)
-  }
-
   const handleSwapAssets = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === 'number' ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price: asset.price || (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || ''
-    } as unknown as WalletAsset
-    setSelectedAsset(compatibleAsset)
+    setSelectedAsset(asset)
     setIsSwapModalOpen(true)
   }
 
@@ -600,7 +554,7 @@ export default function WalletPageClient(): React.ReactElement {
   const demoWalletAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 bg-gradient-to-br from-gray-900 to-blue-900 relative">
+    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 bg-gradient-to-br from-slate-50 to-slate-100 relative">
       {/* Global loading overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -620,7 +574,7 @@ export default function WalletPageClient(): React.ReactElement {
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-destructive/20 border border-destructive text-white p-4 rounded-lg mb-4 flex items-start"
+          className="bg-destructive/10 border border-destructive/20 text-destructive dark:text-white p-4 rounded-lg mb-4 flex items-start"
         >
           <div className="flex-shrink-0 mr-3 mt-0.5">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
@@ -711,7 +665,7 @@ export default function WalletPageClient(): React.ReactElement {
 
             <motion.div variants={itemVariants} className="mt-8">
               <Card className="overflow-hidden border-2 border-dashed border-primary/20 bg-white/5 backdrop-blur-md">
-                <CardHeader className="bg-gradient-to-r from-amber-500/20 to-purple-500/20">
+                <CardHeader className="bg-gradient-to-r from-slate-100 to-indigo-50 border-b border-slate-200">
                   <CardTitle className="flex items-center gap-2 text-white">
                     <Sparkles className="h-5 w-5 text-amber-400" />
                     AI-Enhanced Features Preview
@@ -736,13 +690,13 @@ export default function WalletPageClient(): React.ReactElement {
                         <Card className="bg-transparent">
                           <CardHeader className="pb-2">
                             <div className="flex items-center gap-2">
-                              <div className="bg-gradient-to-r from-blue-500/30 to-purple-500/30 p-2 rounded-full">
+                              <div className="bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-500/20 dark:to-purple-500/20 p-2 rounded-full">
                                 <feature.icon className="h-4 w-4 text-blue-300" />
                               </div>
                               <CardTitle className="text-sm text-white">{feature.title}</CardTitle>
                             </div>
                           </CardHeader>
-                          <CardContent className="text-xs text-gray-300">
+                          <CardContent className="text-xs text-slate-500">
                             <p>{feature.description}</p>
                           </CardContent>
                         </Card>
@@ -754,9 +708,9 @@ export default function WalletPageClient(): React.ReactElement {
             </motion.div>
             
             <motion.div variants={itemVariants} className="mt-8">
-              <Card className="bg-white/10 backdrop-blur-md border border-white/20">
+              <Card className="bg-white border border-slate-200 shadow-md rounded-xl">
                 <CardHeader>
-                  <CardTitle className="text-white">QR Code Demo</CardTitle>
+                  <CardTitle className="text-gray-900 dark:text-white">QR Code Demo</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center space-y-4">
                   <motion.div 
@@ -775,7 +729,7 @@ export default function WalletPageClient(): React.ReactElement {
                   </motion.div>
                   <div className="text-sm text-center text-white">
                     <p>Example wallet address QR code</p>
-                    <p className="text-xs text-gray-300 mt-1 break-all">{demoWalletAddress}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 break-all">{demoWalletAddress}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -784,8 +738,8 @@ export default function WalletPageClient(): React.ReactElement {
         ) : (
           <>
             <motion.div variants={itemVariants}>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-4 mb-6 bg-white/10 backdrop-blur-md border border-white/20">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full hover:bg-primary/90 transition-colors">
+                <TabsList className="grid grid-cols-4 mb-6 bg-white/90 backdrop-blur-md border border-gray-200 shadow-sm dark:bg-white/10 dark:border-white/20">
                   <TabsTrigger value="overview" className="flex items-center gap-2 text-white">
                     <PieChart className="h-4 w-4" />
                     <span className="hidden md:inline">Overview</span>
@@ -812,7 +766,7 @@ export default function WalletPageClient(): React.ReactElement {
                 <TabsContent value="overview" className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <motion.div variants={cardHoverVariants} whileHover="hover">
-                      <Card className="md:col-span-2 bg-white/10 backdrop-blur-md border border-white/20">
+                      <Card className="md:col-span-2 bg-white border border-slate-200 shadow-md rounded-xl">
                         <CardHeader className="pb-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20">
                           <CardTitle className="text-lg flex items-center justify-between text-white">
                             Portfolio Overview
@@ -831,19 +785,19 @@ export default function WalletPageClient(): React.ReactElement {
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm font-medium text-gray-300">Total Balance</p>
-                                <h3 className="text-2xl font-bold text-white">$12,453.21</h3>
+                                <p className="text-sm font-medium text-slate-600">Total Balance</p>
+                                <h3 className="text-2xl font-bold text-slate-800">$12,453.21</h3>
                                 <div className="flex items-center mt-1">
                                   <Badge variant="outline" className="bg-green-50/80 text-green-700 text-xs">
                                     <ArrowUp className="h-3 w-3 mr-1" />
                                     +5.2%
                                   </Badge>
-                                  <span className="text-xs text-gray-300 ml-2">Past 24h</span>
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 ml-2">Past 24h</span>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className="flex flex-col items-end">
-                                  <span className="text-sm font-medium text-gray-300">AI Portfolio Score</span>
+                                  <span className="text-sm font-medium text-slate-600">AI Portfolio Score</span>
                                   <div className="flex items-center mt-1">
                                     <span className="text-xl font-semibold text-white mr-2">{portfolioScore}/100</span>
                                     <TooltipProvider>
@@ -863,30 +817,30 @@ export default function WalletPageClient(): React.ReactElement {
                             </div>
                             <div className="mt-4 border rounded-lg p-4 bg-white/5 backdrop-blur-md">
                               <h4 className="text-sm font-medium mb-2 text-white">Asset Distribution</h4>
-                              <div className="flex gap-1 h-8">
+                              <div className="flex gap-1 h-8 rounded-lg overflow-hidden">
                                 <motion.div 
-                                  className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-l-sm" 
+                                  className="bg-indigo-600 rounded-l-sm" 
                                   style={{ width: "65%" }}
                                   initial={{ width: 0 }}
                                   animate={{ width: "65%" }}
                                   transition={{ duration: 1 }}
                                 />
                                 <motion.div 
-                                  className="bg-gradient-to-r from-green-500 to-green-700" 
+                                  className="bg-emerald-600" 
                                   style={{ width: "20%" }}
                                   initial={{ width: 0 }}
                                   animate={{ width: "20%" }}
                                   transition={{ duration: 1, delay: 0.2 }}
                                 />
                                 <motion.div 
-                                  className="bg-gradient-to-r from-purple-500 to-purple-700" 
+                                  className="bg-violet-600" 
                                   style={{ width: "10%" }}
                                   initial={{ width: 0 }}
                                   animate={{ width: "10%" }}
                                   transition={{ duration: 1, delay: 0.4 }}
                                 />
                                 <motion.div 
-                                  className="bg-gradient-to-r from-amber-500 to-amber-700 rounded-r-sm" 
+                                  className="bg-amber-600 rounded-r-sm" 
                                   style={{ width: "5%" }}
                                   initial={{ width: 0 }}
                                   animate={{ width: "5%" }}
@@ -913,7 +867,7 @@ export default function WalletPageClient(): React.ReactElement {
                               </div>
                             </div>
                             <div className="flex flex-col md:flex-row gap-4 mt-4">
-                              <Button className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600">View All Assets</Button>
+                              <Button className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-lg hover:shadow-xl">View All Assets</Button>
                               <Button 
                                 variant="outline" 
                                 className="flex-1 flex items-center justify-center gap-2 bg-white/10 border-white/20 text-white"
@@ -931,93 +885,93 @@ export default function WalletPageClient(): React.ReactElement {
                                     Analyzing...
                                   </>
                                 ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Analyze Portfolio
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                                  <>
+                                    <Sparkles className="h-4 w-4" />
+                                    Analyze Portfolio
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
 
-        {/* Smart Wallet Setup Card */}
-        {isConnected && !delegationComplete && (
-          <motion.div variants={itemVariants} className="mb-8">
-            <Card className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-500/30 overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl text-white flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-blue-400" />
-                  Smart Wallet Setup
-                </CardTitle>
-                <CardDescription className="text-blue-200">
-                  Set up your AI-powered smart wallet to enable advanced features
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                        <div className="bg-blue-500/20 p-3 rounded-full">
-                          <Wallet className="h-6 w-6 text-blue-300" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-white font-medium">Create Smart Account</h3>
-                          <p className="text-sm text-blue-200">Deploy a smart contract wallet linked to your EOA</p>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          className="bg-blue-500/20 border-blue-500/30 text-white hover:bg-blue-500/30"
-                          onClick={setupAccounts}
-                          disabled={isCreatingAccounts || delegatorAccount !== undefined}
-                        >
-                          {delegatorAccount ? "Done" : "Setup"}
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="bg-purple-500/20 p-3 rounded-full">
-                          <Sparkles className="h-6 w-6 text-purple-300" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-white font-medium">Create AI Delegation</h3>
-                          <p className="text-sm text-blue-200">Enable AI assistant to perform actions on your behalf</p>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          className="bg-purple-500/20 border-purple-500/30 text-white hover:bg-purple-500/30"
-                          onClick={handleCreateDelegation}
-                          disabled={isCreatingDelegation || !delegatorAccount || delegationComplete}
-                        >
-                          {delegationComplete ? "Done" : "Setup"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-            
-            <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {assets.map((asset) => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  onSend={() => handleSendAsset(asset)}
-                  onReceive={() => handleReceiveAsset(asset)}
-                  onSwap={() => handleSwapAssets(asset)}
-                />
-              ))}
-            </motion.div>
+                    {/* Smart Wallet Setup Card */}
+                    {isConnected && !delegationComplete && (
+                      <motion.div variants={itemVariants} className="mb-8">
+                        <Card className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-500/30 overflow-hidden">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xl text-white flex items-center gap-2">
+                              <Sparkles className="h-5 w-5 text-blue-400" />
+                              Smart Wallet Setup
+                            </CardTitle>
+                            <CardDescription className="text-blue-200">
+                              Set up your AI-powered smart wallet to enable advanced features
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-4">
+                                <div className="bg-blue-500/20 p-3 rounded-full">
+                                  <Wallet className="h-6 w-6 text-blue-300" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-white font-medium">Create Smart Account</h3>
+                                  <p className="text-sm text-blue-200">Deploy a smart contract wallet linked to your EOA</p>
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  className="bg-blue-500/20 border-blue-500/30 text-white hover:bg-blue-500/30"
+                                  onClick={setupAccounts}
+                                  disabled={isCreatingAccounts || delegatorAccount !== undefined}
+                                >
+                                  {delegatorAccount ? "Done" : "Setup"}
+                                </Button>
+                              </div>
+                              
+                              <div className="flex items-center gap-4">
+                                <div className="bg-purple-500/20 p-3 rounded-full">
+                                  <Sparkles className="h-6 w-6 text-purple-300" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-white font-medium">Create AI Delegation</h3>
+                                  <p className="text-sm text-blue-200">Enable AI assistant to perform actions on your behalf</p>
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  className="bg-purple-500/20 border-purple-500/30 text-white hover:bg-purple-500/30"
+                                  onClick={handleCreateDelegation}
+                                  disabled={isCreatingAccounts || isCreatingDelegation || !delegatorAccount || delegationComplete}
+                                >
+                                  {delegationComplete ? "Done" : "Setup"}
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    )}
+                    
+                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {assets.map((asset) => (
+                        <AssetCard
+                          key={asset.id}
+                          asset={asset}
+                          onSend={() => handleSendAsset(asset)}
+                          onReceive={() => handleReceiveAsset(asset)}
+                          onSwap={() => handleSwapAssets(asset)}
+                        />
+                      ))}
+                    </motion.div>
                     
                     <motion.div variants={cardHoverVariants} whileHover="hover">
-                      <Card className="bg-white/10 backdrop-blur-md border border-white/20">
+                      <Card className="bg-white border border-slate-200 shadow-md rounded-xl">
                         <CardHeader className="pb-2 bg-gradient-to-r from-amber-500/20 to-purple-500/20">
                           <CardTitle className="text-lg flex items-center justify-between text-white">
                             AI Insights
                             <motion.button 
-                              className="text-xs text-gray-300"
+                              className="text-xs text-slate-500"
                               onClick={() => setShowAISettings(!showAISettings)}
                             >
                               <Settings className="h-4 w-4" />
@@ -1068,10 +1022,10 @@ export default function WalletPageClient(): React.ReactElement {
                                   variants={cardHoverVariants}
                                   whileHover="hover"
                                 >
-                                  <Card className={`bg-white/10 backdrop-blur-md border-l-4 border ${
+                                  <Card className={`bg-white border border-slate-200 shadow-md rounded-xl border-l-4 border ${
                                     insight.impact === 'high' ? 'border-l-red-500' : 
                                     insight.impact === 'medium' ? 'border-l-amber-500' : 'border-l-green-500'
-                                  } border-white/20`}>
+                                  }`}>
                                     <CardContent className="p-3">
                                       <div className="flex items-start justify-between">
                                         <div>
@@ -1081,7 +1035,7 @@ export default function WalletPageClient(): React.ReactElement {
                                             {insight.type === 'opportunity' && <Zap className="h-3 w-3 text-green-400" />}
                                             {insight.title}
                                           </h4>
-                                          <p className="text-xs text-gray-300 mt-1">{insight.description}</p>
+                                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{insight.description}</p>
                                         </div>
                                         <Badge variant="outline" className="text-xs bg-white/10 text-white">
                                           {insight.impact === 'high' && 'High Impact'}
@@ -1101,7 +1055,7 @@ export default function WalletPageClient(): React.ReactElement {
                           ) : (
                             <div className="flex flex-col items-center justify-center h-[200px] text-center">
                               <Sparkles className="h-10 w-10 text-gray-300 mb-2" />
-                              <p className="text-sm text-gray-300">
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
                                 Click "Analyze with AI" to get personalized insights
                               </p>
                               <Button 
@@ -1119,7 +1073,7 @@ export default function WalletPageClient(): React.ReactElement {
                     </motion.div>
                   </div>
                   <motion.div variants={cardHoverVariants} whileHover="hover">
-                    <Card className="bg-white/10 backdrop-blur-md border border-white/20">
+                    <Card className="bg-white border border-slate-200 shadow-md rounded-xl">
                       <CardHeader className="pb-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20">
                         <CardTitle className="text-lg text-white">Recent Transactions</CardTitle>
                       </CardHeader>
@@ -1201,6 +1155,7 @@ export default function WalletPageClient(): React.ReactElement {
                     </Card>
                   </motion.div>
                 </TabsContent>
+                
               </Tabs>
             </motion.div>
 
@@ -1241,7 +1196,7 @@ export default function WalletPageClient(): React.ReactElement {
                         <p className="text-sm text-green-700 mb-2">
                           Your AI assistant can now create tokens on your behalf using your delegated permissions.
                         </p>
-                        <div className="text-xs text-green-600 space-y-1">
+                        <div className="text-xs text-emerald-700 space-y-1.5 bg-emerald-50/60 p-2 rounded-md border border-emerald-100">
                           <div><strong>Delegator:</strong> {delegatorAccount?.address.slice(0, 6)}...{delegatorAccount?.address.slice(-4)}</div>
                           <div><strong>Delegate:</strong> {aiDelegateAccount?.address.slice(0, 6)}...{aiDelegateAccount?.address.slice(-4)}</div>
                           <div><strong>Permissions:</strong> Create tokens only (ERC-20)</div>
@@ -1250,7 +1205,7 @@ export default function WalletPageClient(): React.ReactElement {
                       
                       <Button 
                         variant="outline" 
-                        className="w-full"
+                        className="w-full hover:bg-gray-50/80 transition-colors"
                         onClick={() => setIsDelegationModalOpen(false)}
                       >
                         Close
@@ -1258,7 +1213,7 @@ export default function WalletPageClient(): React.ReactElement {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+                      <div className="bg-blue-50/90 border border-blue-200 shadow-sm rounded-lg p-4 text-sm text-blue-800 shadow-sm backdrop-blur-sm">
                         <p className="mb-2">
                           <strong>What is AI Delegation?</strong>
                         </p>
@@ -1271,7 +1226,7 @@ export default function WalletPageClient(): React.ReactElement {
                       </div>
                       
                       <Button 
-                        className="w-full"
+                        className="w-full hover:bg-gray-50/80 transition-colors"
                         onClick={handleCreateDelegation}
                         disabled={isCreatingAccounts || isCreatingDelegation}
                       >
@@ -1293,7 +1248,7 @@ export default function WalletPageClient(): React.ReactElement {
                       
                       <Button 
                         variant="outline" 
-                        className="w-full"
+                        className="w-full hover:bg-gray-50/80 transition-colors"
                         onClick={() => setIsDelegationModalOpen(false)}
                       >
                         Cancel
@@ -1308,18 +1263,18 @@ export default function WalletPageClient(): React.ReactElement {
                 <SendAssetModal
                   isOpen={isSendModalOpen}
                   onClose={handleCloseSendModal}
-                  asset={selectedAsset as unknown as WalletAsset}
+                  asset={selectedAsset}
                 />
                 <ReceiveAssetModal
                   isOpen={isReceiveModalOpen}
                   onClose={handleCloseReceiveModal}
-                  asset={selectedAsset as unknown as WalletAsset}
+                  asset={selectedAsset}
                   walletAddress={address || ''}
                 />
                 <SwapAssetsModal
                   isOpen={isSwapModalOpen}
                   onClose={handleCloseSwapModal}
-                  fromAsset={selectedAsset as unknown as WalletAsset}
+                  fromAsset={selectedAsset}
                 />
               </>
             )}
