@@ -38,4 +38,18 @@ export interface SearchResultsProps {
   filteredItems: NavItem[];
   setShowSearchResults: Dispatch<SetStateAction<boolean>>;
   addToRecentPages?: (item: NavItem) => void;
+  searchQuery: string;
+  onClearSearch: () => void;
+}
+
+export interface SidebarContentProps {
+  isCollapsed: boolean;
+  toggleSidebar: () => void;
+  pinnedItems: NavItem[];
+  togglePinItem: (item: NavItem) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  showSearchResults?: boolean;
+  setShowSearchResults?: Dispatch<SetStateAction<boolean>> | (() => void);
+  isSearching?: boolean;
 }

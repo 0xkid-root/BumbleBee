@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Provider } from "@/lib/Provider"
 import { Toaster } from "@/components/ui/sonner"
+import { SidebarProvider } from "@/components/providers/sidebar-provider"
 
 // Define fonts
 const inter = Inter({
@@ -43,12 +44,14 @@ export default function RootLayout({
       className={`${inter.variable} ${montserrat.variable} ${firaCode.variable}`}
     >
       <body className={inter.className}>
-        <Provider initialState={undefined}>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster position="bottom-right" />
-          </ThemeProvider>
-        </Provider>
+        <SidebarProvider>
+          <Provider initialState={undefined}>
+            <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+              {children}
+              <Toaster position="bottom-right" />
+            </ThemeProvider>
+          </Provider>
+        </SidebarProvider>
       </body>
     </html>
   )

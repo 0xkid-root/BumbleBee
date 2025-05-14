@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-export type Asset = {
+export interface Asset {
   id: string
   name: string
   symbol: string
@@ -12,7 +12,7 @@ export type Asset = {
   logo: string
 }
 
-type WalletState = {
+interface BaseWalletState {
   assets: Asset[]
   isConnected: boolean
   address: string | null
@@ -21,9 +21,10 @@ type WalletState = {
   error: string | null
   isConnecting: boolean
   connectionError: string | null
+  showConnectModal: boolean
 }
 
-type WalletActions = {
+interface BaseWalletActions {
   connectWallet: (walletName?: string) => Promise<void>
   disconnectWallet: () => void
   refreshBalances: () => Promise<void>
@@ -31,9 +32,12 @@ type WalletActions = {
   receiveAsset: (assetId: string) => string
   swapAssets: (fromAssetId: string, toAssetId: string, amount: number) => Promise<boolean>
   clearConnectionError: () => void
+  setShowConnectModal: (show: boolean) => void
 }
 
-// Mock data for demonstration
+type WalletStore = BaseWalletState & BaseWalletActions
+
+// Mock data
 const mockAssets: Asset[] = [
   {
     id: "1",
@@ -77,8 +81,10 @@ const mockAssets: Asset[] = [
   },
 ]
 
-export const useWalletStore = create<WalletState & WalletActions>()(persist(
-  (set, get) => ({
+export const useWalletStore = create<WalletStore>()(
+  persist(
+    (set, get) => ({
+      // Initial state
       assets: [],
       isConnected: false,
       address: null,
@@ -87,14 +93,14 @@ export const useWalletStore = create<WalletState & WalletActions>()(persist(
       error: null,
       isConnecting: false,
       connectionError: null,
+      showConnectModal: false,
 
+      // Actions
       connectWallet: async (walletName?: string) => {
         try {
           set({ isLoading: true, error: null, isConnecting: true, connectionError: null })
-
-          // Simulate connection delay
-          await new Promise((resolve) => setTimeout(resolve, 1500))
-
+          await new Promise(resolve => setTimeout(resolve, 1500))
+          
           set({
             isConnected: true,
             address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
@@ -103,43 +109,46 @@ export const useWalletStore = create<WalletState & WalletActions>()(persist(
             isConnecting: false,
           })
 
-          // Calculate total balance
-          const { assets } = get()
-          const totalBalance = assets.reduce((sum, asset) => sum + asset.value, 0)
+          const totalBalance = get().assets.reduce((sum: number, asset: Asset) => sum + asset.value, 0)
           set({ totalBalance })
-        } catch (error: any) {
+        } catch (error) {
           set({
             isLoading: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : "Unknown error",
             isConnecting: false,
-            connectionError: error.message,
+            connectionError: error instanceof Error ? error.message : "Unknown error",
           })
         }
       },
 
       disconnectWallet: () => {
-        set({ isConnected: false, address: null })
+        set({ 
+          isConnected: false, 
+          address: null,
+          assets: [],
+          totalBalance: 0
+        })
       },
 
       refreshBalances: async () => {
         set({ isLoading: true, error: null })
         try {
-          // Simulate API call
-          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await new Promise(resolve => setTimeout(resolve, 1000))
           set({ isLoading: false })
         } catch (error) {
-          set({ error: "Failed to refresh balances", isLoading: false })
+          set({ 
+            error: "Failed to refresh balances", 
+            isLoading: false 
+          })
         }
       },
 
-      sendAsset: async (assetId, amount, recipient) => {
+      sendAsset: async (assetId: string, amount: number, recipient: string) => {
         set({ isLoading: true, error: null })
         try {
-          // Simulate API call
-          await new Promise((resolve) => setTimeout(resolve, 1500))
+          await new Promise(resolve => setTimeout(resolve, 1500))
 
-          // Update asset balance
-          const assets = get().assets.map((asset) => {
+          const updatedAssets = get().assets.map((asset: Asset) => {
             if (asset.id === assetId) {
               return {
                 ...asset,
@@ -151,32 +160,32 @@ export const useWalletStore = create<WalletState & WalletActions>()(persist(
           })
 
           set({
-            assets,
-            totalBalance: assets.reduce((acc, asset) => acc + asset.value, 0),
+            assets: updatedAssets,
+            totalBalance: updatedAssets.reduce((acc: number, asset: Asset) => acc + asset.value, 0),
             isLoading: false,
           })
 
           return true
         } catch (error) {
-          set({ error: "Transaction failed", isLoading: false })
+          set({ 
+            error: "Transaction failed", 
+            isLoading: false 
+          })
           return false
         }
       },
 
-      receiveAsset: (assetId) => {
-        // Return a mock address for receiving
+      receiveAsset: (assetId: string) => {
         return "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t"
       },
 
-      swapAssets: async (fromAssetId, toAssetId, amount) => {
+      swapAssets: async (fromAssetId: string, toAssetId: string, amount: number) => {
         set({ isLoading: true, error: null })
         try {
-          // Simulate API call
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+          await new Promise(resolve => setTimeout(resolve, 2000))
 
-          // Get exchange rate (simplified)
-          const fromAsset = get().assets.find((a) => a.id === fromAssetId)
-          const toAsset = get().assets.find((a) => a.id === toAssetId)
+          const fromAsset = get().assets.find((a: Asset) => a.id === fromAssetId)
+          const toAsset = get().assets.find((a: Asset) => a.id === toAssetId)
 
           if (!fromAsset || !toAsset) {
             throw new Error("Asset not found")
@@ -185,8 +194,7 @@ export const useWalletStore = create<WalletState & WalletActions>()(persist(
           const exchangeRate = fromAsset.price / toAsset.price
           const receivedAmount = amount * exchangeRate
 
-          // Update asset balances
-          const assets = get().assets.map((asset) => {
+          const updatedAssets = get().assets.map((asset: Asset) => {
             if (asset.id === fromAssetId) {
               return {
                 ...asset,
@@ -205,25 +213,31 @@ export const useWalletStore = create<WalletState & WalletActions>()(persist(
           })
 
           set({
-            assets,
-            totalBalance: assets.reduce((acc, asset) => acc + asset.value, 0),
+            assets: updatedAssets,
+            totalBalance: updatedAssets.reduce((acc: number, asset: Asset) => acc + asset.value, 0),
             isLoading: false,
           })
 
           return true
         } catch (error) {
-          set({ error: "Swap failed", isLoading: false })
+          set({ 
+            error: "Swap failed", 
+            isLoading: false 
+          })
           return false
         }
+      },
+
+      clearConnectionError: () => {
+        set({ connectionError: null })
+      },
+
+      setShowConnectModal: (show: boolean) => {
+        set({ showConnectModal: show })
       },
     }),
     {
       name: "wallet-storage",
-    },
-  ),
+    }
+  )
 )
-
-// Add the missing clearConnectionError method to the store
-useWalletStore.setState({
-  clearConnectionError: () => useWalletStore.setState({ connectionError: null })
-})

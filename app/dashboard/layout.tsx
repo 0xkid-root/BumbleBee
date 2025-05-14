@@ -1,10 +1,9 @@
-import type React from "react"
-import type { Metadata } from "next"
-import  DashboardLayout  from "@/components/dashboard/dashboard-layout"
+import { Metadata } from "next"
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 
 export const metadata: Metadata = {
   title: "Dashboard | Bumblebee",
-  description: "Bumblebee DeFi Dashboard",
+  description: "Manage your digital assets and social payments"
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

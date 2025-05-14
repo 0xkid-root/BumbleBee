@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { SubscriptionManagement } from "./subscription-management"
+import SubscriptionManagement from "./subscription-management"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export const metadata = {

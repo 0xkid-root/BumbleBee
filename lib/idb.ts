@@ -1,182 +1,84 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { openDB, IDBPDatabase } from 'idb'
 
-// Define the database schema
-interface BumbleBeeDB extends DBSchema {
-  users: {
-    key: string;
-    value: User;
-    indexes: {
-      'by-wallet-address': string;
-      'by-username': string;
-    };
-  };
-  waitlist: {
-    key: string;
-    value: WaitlistEntry;
-    indexes: {
-      'by-email': string;
-    };
-  };
+interface IDBUser {
+  id: string
+  name: string | null
+  address: string
+  createdAt: number
 }
 
-// Define types for database tables
-export type User = {
-  id: string;
-  name: string;
-  username: string;
-  wallet_address: string;
-  connected_chain: string;
-  created_at: Date;
-  updated_at: Date;
+const DB_NAME = 'BumbleBeeDB'
+const DB_VERSION = 1
+const USERS_STORE = 'users'
+
+export async function initializeDB() {
+  const db = await openDB(DB_NAME, DB_VERSION, {
+    upgrade(db: IDBPDatabase) {
+      if (!db.objectStoreNames.contains(USERS_STORE)) {
+        const store = db.createObjectStore(USERS_STORE, { keyPath: 'address' })
+        store.createIndex('address', 'address', { unique: true })
+      }
+    },
+  })
+  return db
 }
 
-export type WaitlistEntry = {
-  id: string;
-  name: string;
-  email: string;
-  interests: string[];
-  created_at: Date;
-}
-
-// Database name and version
-const DB_NAME = 'bumblebee-db';
-const DB_VERSION = 1;
-
-// Database connection
-let dbPromise: Promise<IDBPDatabase<BumbleBeeDB>> | null = null;
-
-// Get database connection
-async function getDB(): Promise<IDBPDatabase<BumbleBeeDB>> {
-  if (!dbPromise) {
-    dbPromise = openDB<BumbleBeeDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        // Create users store with indexes
-        if (!db.objectStoreNames.contains('users')) {
-          const usersStore = db.createObjectStore('users', { keyPath: 'id' });
-          usersStore.createIndex('by-wallet-address', 'wallet_address', { unique: true });
-          usersStore.createIndex('by-username', 'username', { unique: true });
-        }
-        
-        // Create waitlist store with indexes
-        if (!db.objectStoreNames.contains('waitlist')) {
-          const waitlistStore = db.createObjectStore('waitlist', { keyPath: 'id' });
-          waitlistStore.createIndex('by-email', 'email', { unique: true });
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
-
-// Generate a UUID
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-// Database initialization function
-export async function initializeDatabase() {
+export async function getUserByWalletAddress(address: string): Promise<IDBUser | null> {
   try {
-    // This will create the database and object stores if they don't exist
-    await getDB();
-    console.log('IndexedDB initialized successfully');
-    return { success: true };
+    const db = await initializeDB()
+    const user = await db.get(USERS_STORE, address)
+    return user || null
   } catch (error) {
-    console.error('IndexedDB initialization failed:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown database error' 
-    };
+    console.error('Error fetching user from IDB:', error)
+    return null
   }
 }
 
-// User-related functions
-export async function getUserByWalletAddress(walletAddress: string): Promise<User | null> {
+export async function createUser(userData: { name: string; address: string }): Promise<IDBUser> {
   try {
-    const db = await getDB();
-    const user = await db.getFromIndex('users', 'by-wallet-address', walletAddress);
-    return user || null;
-  } catch (error) {
-    console.error('Failed to fetch user:', error);
-    return null;
-  }
-}
-
-export async function createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
-  try {
-    const db = await getDB();
-    
-    // Check if user with same wallet address already exists
-    const existingWallet = await db.getFromIndex('users', 'by-wallet-address', userData.wallet_address);
-    if (existingWallet) {
-      throw new Error('Username or wallet address already exists');
-    }
-    
-    // Check if user with same username already exists
-    const existingUsername = await db.getFromIndex('users', 'by-username', userData.username);
-    if (existingUsername) {
-      throw new Error('Username or wallet address already exists');
-    }
-    
-    // Create new user
-    const now = new Date();
-    const newUser: User = {
+    const db = await initializeDB()
+    const user: IDBUser = {
+      id: crypto.randomUUID(),
       ...userData,
-      id: generateUUID(),
-      created_at: now,
-      updated_at: now
-    };
-    
-    // Add to database
-    await db.add('users', newUser);
-    
-    return newUser;
-  } catch (error) {
-    console.error('Failed to create user:', error);
-    throw error;
-  }
-}
-
-// Waitlist-related functions
-export async function addToWaitlist(waitlistData: Omit<WaitlistEntry, 'id' | 'created_at'>): Promise<WaitlistEntry> {
-  try {
-    const db = await getDB();
-    
-    // Check if email already exists in waitlist
-    try {
-      const existingEmail = await db.getFromIndex('waitlist', 'by-email', waitlistData.email);
-      if (existingEmail) {
-        throw new Error('This email is already on the waitlist');
-      }
-    } catch (error) {
-      // If error is not about duplicate, rethrow
-      if (!(error instanceof Error && error.message.includes('already on the waitlist'))) {
-        throw error;
-      }
+      createdAt: Date.now(),
     }
     
-    // Create new waitlist entry
-    const newEntry: WaitlistEntry = {
-      ...waitlistData,
-      id: generateUUID(),
-      created_at: new Date()
-    };
-    
-    // Add to database
-    await db.add('waitlist', newEntry);
-    
-    return newEntry;
+    await db.put(USERS_STORE, user)
+    return user
   } catch (error) {
-    console.error('Failed to add to waitlist:', error);
-    throw error;
+    console.error('Error creating user in IDB:', error)
+    throw error
   }
 }
 
-// Close connection (not really needed for IndexedDB but keeping API consistent)
-export async function closeConnection() {
-  // IndexedDB connections are automatically closed when not in use
-  dbPromise = null;
+export async function updateUser(userData: Partial<IDBUser> & { address: string }): Promise<IDBUser> {
+  try {
+    const db = await initializeDB()
+    const existingUser = await getUserByWalletAddress(userData.address)
+    
+    if (!existingUser) {
+      throw new Error('User not found')
+    }
+    
+    const updatedUser = {
+      ...existingUser,
+      ...userData,
+    }
+    
+    await db.put(USERS_STORE, updatedUser)
+    return updatedUser
+  } catch (error) {
+    console.error('Error updating user in IDB:', error)
+    throw error
+  }
+}
+
+export async function deleteUser(address: string): Promise<void> {
+  try {
+    const db = await initializeDB()
+    await db.delete(USERS_STORE, address)
+  } catch (error) {
+    console.error('Error deleting user from IDB:', error)
+    throw error
+  }
 }

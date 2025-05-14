@@ -4,6 +4,41 @@ import type * as React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
+const sidebarVariants = {
+  expanded: {
+    width: "280px",
+    transition: { type: "spring", stiffness: 300, damping: 30 }
+  },
+  collapsed: {
+    width: "64px",
+    transition: { type: "spring", stiffness: 300, damping: 30 }
+  }
+}
+
+const itemVariants = {
+  expanded: { 
+    opacity: 1, 
+    x: 0,
+    display: "flex",
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 30,
+      delay: 0.1
+    }
+  },
+  collapsed: { 
+    opacity: 0, 
+    x: -10,
+    transitionEnd: { display: "none" },
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 30
+    }
+  }
+}
+
 type SidebarContextType = {
   isCollapsed: boolean
   toggleSidebar: () => void

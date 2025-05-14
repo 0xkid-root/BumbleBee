@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense, lazy, useState } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardSidebar } from "./sidebar";
-import { Sidebar } from "@/components/ui/sidebar";
 import { motion } from "framer-motion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Activity, Wallet, TrendingUp, CreditCard, Users, Sparkles } from "lucide-react";
-import { PortfolioAnalytics } from "./components/PortfolioAnalytics";
+import { cn } from "@/lib/utils";
+import { ClientDashboardLayout } from "./client-layout";
+
 // Lazy load components
 const Card = lazy(() => import("./components/Card").then(mod => ({ default: mod.Card })));
 const StatBox = lazy(() => import("./components/StatBox").then(mod => ({ default: mod.StatBox })));
@@ -138,119 +139,6 @@ const groupTabs = [
   },
 ];
 
-export default function DashboardLayout() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  return (
-    <Sidebar>
-      <DashboardContent isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-    </Sidebar>
-  );
-}
-
-function DashboardContent({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; setIsCollapsed: (value: boolean) => void }) {
-  const { user } = useAuth();
-
-  return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-      <main
-        className="flex-1 p-6 overflow-y-auto transition-all duration-300 ease-in-out"
-        style={{ marginLeft: isCollapsed ? '70px' : '280px' }}
-      >
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Welcome Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'User'}!</h1>
-            <p className="text-muted-foreground">Here's what's happening with your portfolio today.</p>
-          </motion.div>
-
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
-              <StatBox
-                title="Portfolio Value"
-                value="$12,345.67"
-                icon={Wallet}
-                gradient="from-blue-500 to-indigo-600"
-                trend={{ value: 12.5, isPositive: true }}
-                index={0}
-              />
-            </Suspense>
-            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
-              <StatBox
-                title="24h Change"
-                value="+$1,234.56"
-                icon={TrendingUp}
-                gradient="from-emerald-500 to-teal-600"
-                trend={{ value: 8.2, isPositive: true }}
-                index={1}
-              />
-            </Suspense>
-            <Suspense fallback={<div className="h-32 rounded-xl bg-muted animate-pulse" />}>
-              <StatBox
-                title="Active Positions"
-                value="8"
-                icon={Activity}
-                gradient="from-purple-500 to-pink-500"
-                trend={{ value: 2, isPositive: true }}
-                index={2}
-              />
-            </Suspense>
-          </div>
-
-          {/* Portfolio Chart */}
-          <Suspense fallback={<div className="h-96 rounded-xl bg-muted animate-pulse" />}>
-            <PortfolioChart />
-          </Suspense>
-
-          {/* Activity and Alerts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="Recent Activity" icon={<Activity className="h-5 w-5" />}>
-                <TransactionHistory transactions={recentActivity} />
-              </Card>
-            </Suspense>
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="Smart Wallet Alerts" variant="glass">
-                <SmartWalletFeatures alerts={smartWalletAlerts} />
-              </Card>
-            </Suspense>
-          </div>
-
-          {/* Subscriptions and Group Tabs */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="Active Subscriptions" icon={<CreditCard className="h-5 w-5" />}>
-                <SubscriptionList subscriptions={subscriptions} />
-              </Card>
-            </Suspense>
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="Group Tabs" icon={<Users className="h-5 w-5" />}>
-                <GroupTabList groupTabs={groupTabs} />
-              </Card>
-            </Suspense>
-          </div>
-
-          {/* AI Insights and Portfolio Analytics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="AI Insights" icon={<Sparkles className="h-5 w-5" />}>
-                <AIInsights />
-              </Card>
-            </Suspense>
-            <Suspense fallback={<div className="h-64 rounded-xl bg-muted animate-pulse" />}>
-              <Card title="Portfolio Analytics" icon={<TrendingUp className="h-5 w-5" />}>
-                <PortfolioAnalytics />
-              </Card>
-            </Suspense>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return <ClientDashboardLayout>{children}</ClientDashboardLayout>
 }
