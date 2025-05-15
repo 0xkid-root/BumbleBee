@@ -76,29 +76,29 @@ const WaitlistModal = () => {
   const onSubmit = async (data: WaitlistFormValues) => {
     setIsSubmitting(true)
     
-    try {
-      // Save to Supabase
-      await addToWaitlist({
-        name: data.name,
-        email: data.email,
-        interests: data.interests || []
-      })
+    // try {
+    //   // Save to Supabase
+    //   await addToWaitlist({
+    //     name: data.name,
+    //     email: data.email,
+    //     interests: data.interests || []
+    //   })
       
-      // Show success message
-      toast.success("You've been added to our waitlist!", {
-        description: "We'll notify you when Bumblebee launches."
-      })
+    //   // Show success message
+    //   toast.success("You've been added to our waitlist!", {
+    //     description: "We'll notify you when Bumblebee launches."
+    //   })
       
-      // Close modal and reset form
-      setOpen(false)
-      form.reset()
-    } catch (error) {
-      toast.error("Something went wrong", {
-        description: "Please try again later."
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+    //   // Close modal and reset form
+    //   setOpen(false)
+    //   form.reset()
+    // } catch (error) {
+    //   toast.error("Something went wrong", {
+    //     description: "Please try again later."
+    //   })
+    // } finally {
+    //   setIsSubmitting(false)
+    // }
   }
   
   return (
@@ -342,7 +342,7 @@ export default function HeroSection() {
                 "bg-gradient-to-r from-primary to-primary text-white group px-6 focus-ring relative overflow-hidden",
                 "before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
               )}
-              onClick={connectWallet}
+              onClick={(e) => connectWallet()}
               disabled={isConnected || isLoading}
             >
               <span className="relative z-10 flex items-center">

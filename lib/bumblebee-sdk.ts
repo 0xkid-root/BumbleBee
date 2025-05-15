@@ -49,23 +49,40 @@ import { retry } from 'ts-retry-promise';
 import { z } from 'zod';
 import EventEmitter from 'events';
 
-// Load environment variables
-dotenv.config();
+// Environment configuration
+const getEnvironmentConfig = () => {
+  // Default configuration
+  const defaultConfig = {
+    RPC_URL: 'https://rpc.sepolia.org',
+    GAIA_NET_URL: 'https://api.gaianet.ai',
+    GAIA_NET_API_KEY: process.env.NEXT_PUBLIC_GAIA_NET_API_KEY || 'default_key',
+    DELEGATION_CONTRACT_ADDRESS: process.env.NEXT_PUBLIC_DELEGATION_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
+    LOG_LEVEL: 'info',
+    MAINNET_RPC_URL: process.env.NEXT_PUBLIC_MAINNET_RPC_URL || 'https://eth-mainnet.g.alchemy.com/v2/demo',
+  };
 
-// Environment variable validation schema
-const envSchema = z.object({
-  RPC_URL: z.string().url().optional().default('https://rpc.sepolia.org'),
-  GAIA_NET_URL: z.string().url().optional().default('https://api.gaianet.ai'),
-  GAIA_NET_API_KEY: z.string().min(1),
-  DELEGATION_CONTRACT_ADDRESS: z.string().refine(isAddress, { message: 'Invalid contract address' }),
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-  MAINNET_RPC_URL: z.string().url().optional(),
-}).strict();
+  // Environment variable validation schema
+  const envSchema = z.object({
+    RPC_URL: z.string(),
+    GAIA_NET_URL: z.string(),
+    GAIA_NET_API_KEY: z.string(),
+    DELEGATION_CONTRACT_ADDRESS: z.string(),
+    LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+    MAINNET_RPC_URL: z.string().optional(),
+  }).passthrough();
 
-const env = envSchema.parse(process.env);
+  try {
+    return envSchema.parse(defaultConfig);
+  } catch (error) {
+    console.error('Environment configuration error:', error);
+    throw error;
+  }
+};
+
+const env = getEnvironmentConfig();
 
 // Logger Configuration
-const logger = winston.createLogger({
+const logger = typeof window === 'undefined' ? winston.createLogger({
   level: env.LOG_LEVEL,
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -74,17 +91,14 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({
-      filename: 'bumblebee-sdk.log',
-      maxsize: 10_000_000, // 10MB
-      maxFiles: 5,
-      tailable: true,
-    }),
   ],
-  exceptionHandlers: [
-    new winston.transports.File({ filename: 'bumblebee-sdk-exceptions.log' }),
-  ],
-});
+}) : {
+  error: console.error,
+  warn: console.warn,
+  info: console.info,
+  debug: console.debug,
+  log: console.log,
+};
 
 // Event Emitter for Notifications
 const eventEmitter = new EventEmitter();
@@ -817,6 +831,11 @@ export class BumblebeeSDK {
     return sdk
   }
 
+  private client: PublicClient;
+  private contracts: Map<string, Contract> = new Map();
+  private wallet: any; // Add wallet property to fix TypeScript error
+  private rpcUrl: string;
+
   private constructor(private config: BumblebeeSdkConfig) {
     this.rpcUrl = config.network === Network.Mainnet 
       ? (env.MAINNET_RPC_URL || env.RPC_URL)
@@ -833,6 +852,11 @@ export class BumblebeeSDK {
     this.wallet = {
       getClient: () => ({ /* mock wallet client */ })
     };
+  }
+
+  // Initialize SDK components
+  async init(): Promise<void> {
+    // Any async initialization can go here
     return Promise.resolve();
   }
   

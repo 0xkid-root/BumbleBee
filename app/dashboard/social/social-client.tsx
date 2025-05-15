@@ -552,14 +552,18 @@ export default function SocialClient() {
                         <span>{activeTab === "contacts" ? "Contacts" : "Groups"}</span>
                       </CardTitle>
                       <TabsList className="rounded-lg bg-gray-100/80 dark:bg-gray-700/80 backdrop-blur-sm p-1">
-                        <TabsTrigger value="contacts" className="data-[state=active]:bg-white data-[state=active]:dark:bg-gray-600 rounded-md">
-                          Contacts
-                          {filteredContacts.length > 0 && <Badge className="ml-2">{filteredContacts.length}</Badge>}
-                        </TabsTrigger>
-                        <TabsTrigger value="groups" className="data-[state=active]:bg-white data-[state=active]:dark:bg-gray-600 rounded-md">
-                          Groups
-                          {filteredGroups.length > 0 && <Badge className="ml-2">{filteredGroups.length}</Badge>}
-                        </TabsTrigger>
+                        <Tabs defaultValue="contacts">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="contacts">Contacts</TabsTrigger>
+                            <TabsTrigger value="groups">Groups</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="contacts" className="mt-4 space-y-4">
+                            <ContactList contacts={filteredContacts} onSelect={handleContactSelect} />
+                          </TabsContent>
+                          <TabsContent value="groups" className="mt-4">
+                            <GroupsList groups={filteredGroups} onSelect={handleGroupSelect} />
+                          </TabsContent>
+                        </Tabs>
                       </TabsList>
                     </motion.div>
                     <Input
@@ -571,12 +575,6 @@ export default function SocialClient() {
                   </Tabs>
                 </CardHeader>
                 <CardContent className="flex-1">
-                  <TabsContent value="contacts">
-                    <ContactList contacts={filteredContacts} onSelect={handleContactSelect} />
-                  </TabsContent>
-                  <TabsContent value="groups">
-                    <GroupsList groups={filteredGroups} onSelect={handleGroupSelect} />
-                  </TabsContent>
                 </CardContent>
               </GlassCard>
             </motion.div>
