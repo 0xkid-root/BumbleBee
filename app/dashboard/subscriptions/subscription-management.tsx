@@ -1,52 +1,68 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import {
-  Plus, X, Edit, Trash2, CreditCard, Calendar, Clock, AlertCircle, CheckCircle, Filter,
-  ArrowUpDown, Search, Share2, Wallet, Tag, UserPlus, MoreHorizontal, ExternalLink,
-  Info, Loader2, Copy, Check, ChevronDown, Sparkles, Bell, DollarSign, TrendingUp,
-  Users, Star, Link as LinkIcon, BarChart, Shield, RefreshCw, Zap
+  Plus,
+  Edit,
+  Trash2,
+  Wallet,
+  DollarSign,
+  Users,
+  Zap,
+  MoreHorizontal,
+  ExternalLink,
+  CheckCircle,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
-
-// Wallet integration
-import { useWalletStore } from "@/lib/store/use-wallet-store";
-import { useAccount, useSwitchChain, useChainId } from "wagmi";
-import { formatEther, isAddress } from "viem";
-import { ConnectWalletCard } from "@/components/wallet/connect-wallet-card";
-import { ConnectWalletModal } from "@/components/wallet/connect-wallet-modal";
-
-// BumbleBee SDK integration
+import { motion } from "framer-motion";
 import {
-  BumblebeeSDK,
-  Network,
-  PermissionType,
-  BumblebeeSdkConfig,
-} from "@/lib/bumblebee-sdk";
-
-// Toast notifications
-import { useToast } from "@/hooks/use-toast";
-
-// Components
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { useAccount, useSwitchChain } from "wagmi";
+import { isAddress } from "viem";
 
-// Interfaces
+// Types
 interface Subscription {
   id: string;
   name: string;
@@ -57,124 +73,31 @@ interface Subscription {
   category: string;
   paymentMethod: string;
   status: "active" | "paused" | "expiring" | "shared";
-  startDate: string;
   description?: string;
   contractAddress?: string;
-  ownerAddress?: string;
   erc7715?: boolean;
-  remainingDays?: number;
-  yearlyEstimate?: number;
-  delegationId?: string;
   tokenAddress?: string;
-  isOnchain?: boolean;
+  recipient?: string;
   isAutoRenewing?: boolean;
-  lastSync?: string;
   color?: string;
 }
-
-interface FormState {
-  name: string;
-  amount: string;
-  frequency: string;
-  nextPayment: string;
-  category: string;
-  paymentMethod: string;
-  status: "active" | "paused" | "expiring" | "shared";
-  description: string;
-  contractAddress: string;
-  erc7715: boolean;
-  color: string;
-  tokenAddress?: string;
-  isAutoRenewing?: boolean;
-  recipient?: string;
-}
-
-interface CategoryBreakdown {
-  name: string;
-  amount: number;
-  percentage: number;
-  color: string;
-}
-
-// Predefined data
-const currentUser = {
-  id: "1",
-  name: "Alex Smith",
-  address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-};
-
-const categoryColors = {
-  Entertainment: "#FF5757",
-  Productivity: "#6C63FF",
-  Storage: "#4CAF50",
-  Shopping: "#FFA000",
-  Finance: "#42BAFF",
-  "Health & Fitness": "#FF5CAA",
-  Education: "#9C27B0",
-  Utilities: "#607D8B",
-  "Food & Drink": "#FF9800",
-  Other: "#78909C",
-};
-
-const initialSubscriptions: Subscription[] = [];
-const categories = ["Entertainment", "Productivity", "Storage", "Shopping", "Finance", "Health & Fitness", "Education", "Utilities", "Food & Drink", "Other"];
-const frequencies = ["Daily", "Weekly", "Bi-weekly", "Monthly", "Quarterly", "Yearly"];
-const paymentMethods = ["MetaMask", "WalletConnect", "Coinbase Wallet"];
-const statusVariants = {
-  active: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-800 dark:text-green-400", icon: CheckCircle },
-  paused: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-800 dark:text-amber-400", icon: Clock },
-  expiring: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-800 dark:text-red-400", icon: AlertCircle },
-  shared: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-800 dark:text-blue-400", icon: Share2 },
-};
 
 export default function SubscriptionManagement() {
   const { toast } = useToast();
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const chainId = useAccount().chainId;
   const { switchChainAsync } = useSwitchChain();
 
-  // SDK and state
-  const [sdk, setSdk] = useState<BumblebeeSDK | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  // Define or import the TokenInfo type
-  interface TokenInfo {
-    address: string;
-    symbol: string;
-    name: string;
-    logo?: string;
-  }
-  
-  const [supportedTokens, setSupportedTokens] = useState<TokenInfo[]>([]);
-  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(initialSubscriptions);
-  const [activeTab, setActiveTab] = useState("all");
-  const [sortBy, setSortBy] = useState("name");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isViewMode, setIsViewMode] = useState<"grid" | "list">("grid");
+  // State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [highlightedCard, setHighlightedCard] = useState("");
-  const [showNotificationBadge, setShowNotificationBadge] = useState(true);
-
-  // Refs
-  const upcomingRef = useRef<HTMLDivElement>(null);
-
-  // Animation setup
-  const progress = useMotionValue(0);
-  const opacity = useTransform(progress, [0, 100], [0, 1]);
-  const monthlySpendingSpring = useSpring(0, { stiffness: 100, damping: 10 });
-  const yearlySpendingSpring = useSpring(0, { stiffness: 100, damping: 10 });
-  const activeSubscriptionsSpring = useSpring(0, { stiffness: 100, damping: 10 });
-  const erc7715SubscriptionsSpring = useSpring(0, { stiffness: 100, damping: 10 });
-
-  // Form state
-  const [formState, setFormState] = useState<FormState>({
+  const [formState, setFormState] = useState<Subscription>({
+    id: "",
     name: "",
     amount: "",
+    numericAmount: 0,
     frequency: "Monthly",
     nextPayment: "",
     category: "Entertainment",
@@ -183,515 +106,151 @@ export default function SubscriptionManagement() {
     description: "",
     contractAddress: "",
     erc7715: false,
-    color: "#6366F1",
     tokenAddress: "",
-    isAutoRenewing: false,
     recipient: "",
+    isAutoRenewing: false,
+    color: "#6366F1",
   });
+  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("name");
 
-  // Initialize SDK
-  useEffect(() => {
-    const initSdk = async () => {
-      if (isConnected && address && !sdk && !isInitializing) {
-        try {
-          setIsInitializing(true);
-          const targetChainId = chainId === 1 ? 1 : 11155111; // Mainnet or Sepolia
-          if (chainId !== targetChainId) {
-            try {
-              await switchChainAsync({ chainId: targetChainId });
-            } catch (chainError) {
-              console.warn("Chain switch failed, continuing with current chain", chainError);
-            }
-          }
+  // Mock Categories & Frequencies
+  const categories = [
+    "Entertainment",
+    "Productivity",
+    "Storage",
+    "Shopping",
+    "Finance",
+    "Health & Fitness",
+    "Education",
+    "Utilities",
+    "Food & Drink",
+    "Other",
+  ];
 
-          if (!address) {
-            throw new Error('Wallet address is required');
-          }
+  const frequencies = ["Daily", "Weekly", "Bi-weekly", "Monthly", "Quarterly", "Yearly"];
+  const paymentMethods = ["MetaMask", "WalletConnect", "Coinbase Wallet"];
 
-          const sdkConfig: BumblebeeSdkConfig = {
-            address: address as `0x${string}`,
-            network: chainId === 1 ? Network.Mainnet : Network.Sepolia,
-          };
-
-          try {
-            const newSdk = await BumblebeeSDK.create(sdkConfig);
-            await newSdk.init();
-            setSdk(newSdk);
-
-            // Load supported tokens
-            setIsLoadingTokens(true);
-            const tokens: TokenInfo[] = []; // Replace with actual logic to fetch supported tokens if available
-            setSupportedTokens(tokens);
-            setIsLoadingTokens(false);
-
-            // Load on-chain subscriptions
-            await loadSubscriptions(newSdk);
-
-            toast({
-              title: "Connected to BumbleBee",
-              description: "Successfully connected to the BumbleBee subscription network",
-              duration: 3000,
-            });
-          } catch (sdkError: any) {
-            console.error("Failed to initialize SDK or load data:", sdkError);
-            toast({
-              title: "SDK Error",
-              description: sdkError.message || "Failed to initialize BumbleBee SDK",
-              variant: "destructive",
-              duration: 5000,
-            });
-          }
-        } catch (error: any) {
-          console.error("Failed to initialize SDK:", error);
-          toast({
-            title: "Connection Error",
-            description: "Failed to connect to BumbleBee. Please try again.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        } finally {
-          setIsInitializing(false);
-        }
-      } else if (!isConnected) {
-        setSdk(null);
-      }
-    };
-
-    initSdk();
-  }, [isConnected, address, chainId, switchChainAsync, sdk, isInitializing, toast]);
-
-  // Load subscriptions
-  const loadSubscriptions = async (sdkInstance: BumblebeeSDK) => {
-    try {
-      setIsSyncing(true);
-      
-      // Mock permissions data for development
-      // In a real implementation, this would come from sdkInstance.getSubscription().getPermissions()
-      const mockPermissions = [
-        {
-          delegationId: "delegation-" + Math.random().toString(36).substring(7),
-          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          type: PermissionType.NativeTokenStream,
-          params: {
-            amount: "1000000000000000000", // 1 ETH in wei
-            frequency: "monthly",
-            token: "USDC",
-            recipient: "0x" + Math.random().toString(36).substring(2, 14),
-            target: "0x" + Math.random().toString(36).substring(2, 14),
-          }
-        },
-        {
-          delegationId: "delegation-" + Math.random().toString(36).substring(7),
-          createdAt: new Date(Date.now() - Math.random() * 15 * 24 * 60 * 60 * 1000).toISOString(),
-          type: PermissionType.NativeTokenStream,
-          params: {
-            amount: "500000000000000000", // 0.5 ETH in wei
-            frequency: "weekly",
-            token: "ETH",
-            recipient: "0x" + Math.random().toString(36).substring(2, 14),
-            target: "0x" + Math.random().toString(36).substring(2, 14),
-          }
-        }
-      ];
-
-      interface SubscriptionPermission {
-        delegationId: string;
-        createdAt: string;
-        type: PermissionType;
-        params: {
-          amount?: string;
-          frequency?: string;
-          recipient?: string;
-          target?: string;
-          token?: string;
-        };
-      }
-
-      const permissions = mockPermissions as SubscriptionPermission[];
-
-      const onchainSubs = permissions.map((permission: SubscriptionPermission) => {
-        const amount = permission.params.amount ? formatEther(BigInt(permission.params.amount)) : "0";
-        const numericAmount = parseFloat(amount);
-
-        const createdDate = new Date(permission.createdAt);
-        let nextPaymentDate = new Date(createdDate);
-
-        if (permission.params.frequency) {
-          const frequency = permission.params.frequency.toLowerCase();
-          if (frequency.includes("day")) {
-            nextPaymentDate.setDate(createdDate.getDate() + parseInt(frequency));
-          } else if (frequency.includes("week")) {
-            nextPaymentDate.setDate(createdDate.getDate() + parseInt(frequency) * 7);
-          } else if (frequency.includes("month")) {
-            nextPaymentDate.setMonth(createdDate.getMonth() + parseInt(frequency));
-          }
-        } else {
-          nextPaymentDate.setMonth(createdDate.getMonth() + 1);
-        }
-
-        const today = new Date();
-        const remainingDays = Math.max(0, Math.floor((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-
-        return {
-          id: permission.delegationId,
-          name: `Subscription to ${permission.params.recipient?.substring(0, 6)}...`,
-          amount: `$${numericAmount.toFixed(2)}`,
-          numericAmount,
-          frequency: (permission.params.frequency ? permission.params.frequency.charAt(0).toUpperCase() + permission.params.frequency.slice(1) : "Monthly"),
-          nextPayment: nextPaymentDate.toISOString().split('T')[0],
-          category: "Finance",
-          paymentMethod: "MetaMask",
-          status: "active" as const,
-          startDate: new Date(permission.createdAt).toISOString().split('T')[0],
-          description: `Automated payment to ${permission.params.recipient}`,
-          contractAddress: permission.params.target,
-          ownerAddress: permission.params.recipient,
-          erc7715: true,
-          isOnchain: true,
-          delegationId: permission.delegationId,
-          remainingDays,
-          yearlyEstimate: numericAmount * 12,
-          lastSync: new Date().toISOString(),
-        };
-      });
-
-      const existingOffchainSubs = subscriptions.filter(sub => !sub.isOnchain);
-      setSubscriptions([...existingOffchainSubs, ...onchainSubs]);
-
-      toast({
-        title: "Subscriptions Synced",
-        description: "On-chain subscriptions loaded successfully.",
-        duration: 3000,
-      });
-    } catch (error: any) {
-      console.error("Failed to load subscriptions:", error);
-      toast({
-        title: "Sync Error",
-        description: "Failed to sync your on-chain subscriptions.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsSyncing(false);
-    }
+  const statusVariants = {
+    active: {
+      bg: "bg-green-100 dark:bg-green-900/30",
+      text: "text-green-800 dark:text-green-400",
+      icon: CheckCircle,
+    },
+    paused: {
+      bg: "bg-amber-100 dark:bg-amber-900/30",
+      text: "text-amber-800 dark:text-amber-400",
+      icon: AlertCircle,
+    },
+    expiring: {
+      bg: "bg-red-100 dark:bg-red-900/30",
+      text: "text-red-800 dark:text-red-400",
+      icon: AlertCircle,
+    },
+    shared: {
+      bg: "bg-blue-100 dark:bg-blue-900/30",
+      text: "text-blue-800 dark:text-blue-400",
+      icon: Sparkles,
+    },
   };
 
-  // Calculate statistics
-  const totalMonthlySpending = subscriptions
-    .filter(sub => sub.status === "active" || sub.status === "shared")
-    .reduce((total, sub) => {
-      if (sub.frequency === "Monthly") return total + sub.numericAmount;
-      if (sub.frequency === "Yearly") return total + sub.numericAmount / 12;
-      if (sub.frequency === "Quarterly") return total + sub.numericAmount / 3;
-      if (sub.frequency === "Weekly") return total + sub.numericAmount * 4.33;
-      if (sub.frequency === "Bi-weekly") return total + sub.numericAmount * 2.17;
-      if (sub.frequency === "Daily") return total + sub.numericAmount * 30;
-      return total;
-    }, 0);
-
-  const yearlySpending = subscriptions
-    .filter(sub => sub.status === "active" || sub.status === "shared")
-    .reduce((total, sub) => total + (sub.yearlyEstimate || 0), 0);
-
-  const activeSubscriptions = subscriptions.filter(s => s.status === "active" || s.status === "shared").length;
-  const erc7715Subscriptions = subscriptions.filter(s => s.erc7715).length;
-  const upcomingSubscriptions = subscriptions
-    .filter(s => s.remainingDays && s.remainingDays <= 7 && (s.status === "active" || s.status === "shared"))
-    .sort((a, b) => (a.remainingDays || 0) - (b.remainingDays || 0));
-
-  const categoryBreakdown: CategoryBreakdown[] = categories
-    .map(category => {
-      const categorySubscriptions = subscriptions.filter(
-        sub => sub.category === category && (sub.status === "active" || sub.status === "shared")
-      );
-      const amount = categorySubscriptions.reduce((total, sub) => {
-        if (sub.frequency === "Monthly") return total + sub.numericAmount;
-        if (sub.frequency === "Yearly") return total + sub.numericAmount / 12;
-        if (sub.frequency === "Quarterly") return total + sub.numericAmount / 3;
-        if (sub.frequency === "Weekly") return total + sub.numericAmount * 4.33;
-        if (sub.frequency === "Bi-weekly") return total + sub.numericAmount * 2.17;
-        if (sub.frequency === "Daily") return total + sub.numericAmount * 30;
-        return total;
-      }, 0);
-      return {
-        name: category,
-        amount,
-        percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0,
-        color: categoryColors[category as keyof typeof categoryColors] || "#78909C",
-      };
-    })
-    .filter(cat => cat.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
-
-  // Update animation springs
+  // Load mock data on mount
   useEffect(() => {
-    monthlySpendingSpring.set(totalMonthlySpending);
-    yearlySpendingSpring.set(yearlySpending);
-    activeSubscriptionsSpring.set(activeSubscriptions);
-    erc7715SubscriptionsSpring.set(erc7715Subscriptions);
-  }, [totalMonthlySpending, yearlySpending, activeSubscriptions, erc7715Subscriptions]);
+    const now = new Date();
+    const mockSubs: Subscription[] = [
+      {
+        id: "sub_1",
+        name: "Netflix",
+        amount: "$15.99",
+        numericAmount: 15.99,
+        frequency: "Monthly",
+        nextPayment: new Date(now.getFullYear(), now.getMonth() + 1, 5).toISOString(),
+        category: "Entertainment",
+        paymentMethod: "Credit Card",
+        status: "active",
+        description: "Streaming service",
+        erc7715: false,
+      },
+      {
+        id: "sub_2",
+        name: "Spotify",
+        amount: "$9.99",
+        numericAmount: 9.99,
+        frequency: "Monthly",
+        nextPayment: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+        category: "Entertainment",
+        paymentMethod: "Apple Pay",
+        status: "active",
+        description: "Music streaming",
+        contractAddress: "0xAbc...def",
+        tokenAddress: "0xToken2Addr",
+        recipient: "0xRecipient123",
+        erc7715: true,
+        isAutoRenewing: true,
+        color: "#FFA000",
+      },
+    ];
+    setSubscriptions(mockSubs);
+  }, []);
 
-  // Form handlers
-  const handleFormChange = (field: keyof FormState, value: string | boolean) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Filter and sort subscriptions
   const filteredSubscriptions = subscriptions
-    .filter(sub => {
+    .filter((sub) => {
       if (activeTab === "all") return true;
       if (activeTab === "erc7715") return sub.erc7715;
-      if (activeTab === "upcoming") return sub.remainingDays! <= 7 && (sub.status === "active" || sub.status === "shared");
-      if (activeTab === "shared") return sub.status === "shared";
       return sub.status === activeTab;
     })
-    .filter(sub =>
+    .filter((sub) =>
       !searchQuery ||
       sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      sub.category.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "amount":
-          return a.numericAmount - b.numericAmount;
-        case "nextPayment":
-          return new Date(a.nextPayment).getTime() - new Date(b.nextPayment).getTime();
-        case "category":
-          return a.category.localeCompare(b.category);
-        default:
-          return 0;
-      }
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "amount") return a.numericAmount - b.numericAmount;
+      if (sortBy === "nextPayment")
+        return new Date(a.nextPayment).getTime() - new Date(b.nextPayment).getTime();
+      if (sortBy === "category") return a.category.localeCompare(b.category);
+      return 0;
     });
 
-  // Utility functions
-  const getCounts = (status: string) => {
-    if (status === "erc7715") return subscriptions.filter(s => s.erc7715).length;
-    if (status === "upcoming") return upcomingSubscriptions.length;
+  const getCounts = (status: string): number => {
+    if (status === "erc7715") return subscriptions.filter((s) => s.erc7715).length;
     if (status === "all") return subscriptions.length;
-    return subscriptions.filter(s => s.status === status).length;
+    return subscriptions.filter((s) => s.status === status).length;
   };
 
-  const getRemainingDaysText = (days: number | undefined) => {
-    if (!days && days !== 0) return "";
-    if (days === 0) return "Today";
-    if (days === 1) return "Tomorrow";
-    return `${days} days`;
+  const handleInputChange = (
+    field: keyof Subscription,
+    value: string | boolean | number
+  ) => {
+    setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-
-  // Subscription actions
-  const handleAddSubscription = async () => {
-    setIsSubmitting(true);
-    try {
-      let newSubscription: Subscription;
-      if (formState.erc7715 && sdk && isConnected) {
-        try {
-          if (!isAddress(formState.contractAddress) || !isAddress(formState.recipient || "")) {
-            throw new Error("Invalid contract or recipient address");
-          }
-          
-          // In a real implementation, this would use the SDK
-          // const subscriptionModule = sdk.getSubscription();
-          // const amount = parseFloat(formState.amount.replace(/[^0-9.]/g, '')) * 1e18; // Convert to wei
-          // const delegationId = await subscriptionModule.requestSubscriptionPermission(
-          //   amount,
-          //   formState.frequency.toLowerCase(),
-          //   formState.tokenAddress || "USDC",
-          //   { confirmations: 1 }
-          // );
-          
-          // For development, we'll create a mock delegationId
-          const delegationId = "delegation-" + Math.random().toString(36).substring(7);
-          
-          // Simulate network delay
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          newSubscription = {
-            id: delegationId,
-            name: formState.name,
-            amount: formState.amount.startsWith("$") ? formState.amount : `$${formState.amount}`,
-            numericAmount: parseFloat(formState.amount.replace(/[^0-9.]/g, '')),
-            frequency: formState.frequency,
-            nextPayment: formState.nextPayment,
-            category: formState.category,
-            paymentMethod: formState.paymentMethod,
-            status: formState.status,
-            startDate: new Date().toISOString().split('T')[0],
-            description: formState.description,
-            contractAddress: formState.contractAddress,
-            erc7715: true,
-            isOnchain: true,
-            delegationId,
-            tokenAddress: formState.tokenAddress,
-            ownerAddress: address,
-            remainingDays: Math.floor((new Date(formState.nextPayment).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-            yearlyEstimate: calculateYearlyEstimate(
-              parseFloat(formState.amount.replace(/[^0-9.]/g, '')),
-              formState.frequency
-            ),
-            isAutoRenewing: formState.isAutoRenewing,
-            lastSync: new Date().toISOString(),
-          };
-        } catch (onchainError: any) {
-          console.error("Error creating on-chain subscription:", onchainError);
-          throw new Error(`Failed to create on-chain subscription: ${onchainError.message}`);
-        }
-      } else {
-        newSubscription = {
-          id: `${Date.now()}`,
-          name: formState.name,
-          amount: formState.amount.startsWith("$") ? formState.amount : `$${formState.amount}`,
-          numericAmount: parseFloat(formState.amount.replace(/[^0-9.]/g, '')),
-          frequency: formState.frequency,
-          nextPayment: formState.nextPayment,
-          category: formState.category,
-          paymentMethod: formState.paymentMethod,
-          status: formState.status,
-          startDate: new Date().toISOString().split('T')[0],
-          description: formState.description,
-          erc7715: false,
-          remainingDays: Math.floor((new Date(formState.nextPayment).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-          yearlyEstimate: calculateYearlyEstimate(
-            parseFloat(formState.amount.replace(/[^0-9.]/g, '')),
-            formState.frequency
-          ),
-        };
-      }
-
-      setSubscriptions([...subscriptions, newSubscription]);
-      setIsAddModalOpen(false);
-      toast({
-        title: "Subscription Added",
-        description: `${formState.name} has been added successfully.`,
-        duration: 3000,
-      });
-      resetForm();
-      setHighlightedCard(newSubscription.id);
-      setTimeout(() => setHighlightedCard(""), 3000);
-    } catch (error: any) {
-      toast({
-        title: "Error Adding Subscription",
-        description: error.message || "Failed to add subscription.",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const openAddModal = () => {
+    resetForm();
+    setIsAddModalOpen(true);
   };
 
-  const handleEditSubscription = () => {
-    if (!currentSubscription) return;
-    const updatedSubscriptions = subscriptions.map(sub => {
-      if (sub.id === currentSubscription.id) {
-        const numericAmount = parseFloat(formState.amount.replace(/[^0-9.]/g, ''));
-        return {
-          ...sub,
-          name: formState.name,
-          amount: formState.amount.startsWith("$") ? formState.amount : `$${formState.amount}`,
-          numericAmount,
-          frequency: formState.frequency,
-          nextPayment: formState.nextPayment,
-          category: formState.category,
-          paymentMethod: formState.paymentMethod,
-          status: formState.status,
-          description: formState.description || "",
-          contractAddress: formState.erc7715 ? formState.contractAddress : undefined,
-          erc7715: formState.erc7715,
-          color: formState.color,
-          yearlyEstimate: calculateYearlyEstimate(numericAmount, formState.frequency),
-        };
-      }
-      return sub;
-    });
-
-    setSubscriptions(updatedSubscriptions);
-    setIsEditModalOpen(false);
-    toast({
-      title: "Subscription Updated",
-      description: `${formState.name} has been updated successfully.`,
-      duration: 3000,
-    });
-    setCurrentSubscription(null);
-    setHighlightedCard(currentSubscription.id);
-    setTimeout(() => setHighlightedCard(""), 3000);
-  };
-
-  const handleDeleteSubscription = async () => {
-    if (!currentSubscription) return;
-    try {
-      setIsSubmitting(true);
-      
-      if (currentSubscription.isOnchain && sdk && currentSubscription.delegationId) {
-        try {
-          // In a real implementation, this would use the SDK
-          // const subscriptionModule = sdk.getSubscription();
-          // await subscriptionModule.cancelSubscription(currentSubscription.delegationId);
-          
-          // For development, we'll simulate the network delay
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (revokeError: any) {
-          console.error("Error revoking subscription:", revokeError);
-          throw new Error(`Failed to revoke on-chain subscription: ${revokeError.message}`);
-        }
-      }
-      
-      const updatedSubscriptions = subscriptions.filter(sub => sub.id !== currentSubscription.id);
-      setSubscriptions(updatedSubscriptions);
-      setIsDeleteModalOpen(false);
-      toast({
-        title: "Subscription Deleted",
-        description: `${currentSubscription.name} has been ${currentSubscription.isOnchain ? "revoked" : "deleted"} successfully.`,
-        duration: 3000,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error Deleting Subscription",
-        description: error.message || "Failed to delete subscription.",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsSubmitting(false);
-      setCurrentSubscription(null);
-    }
-  };
-
-  const openEditModal = (subscription: Subscription) => {
-    setCurrentSubscription(subscription);
-    setFormState({
-      name: subscription.name,
-      amount: subscription.amount,
-      frequency: subscription.frequency,
-      nextPayment: subscription.nextPayment,
-      category: subscription.category,
-      paymentMethod: subscription.paymentMethod,
-      status: subscription.status,
-      description: subscription.description || "",
-      contractAddress: subscription.contractAddress || "",
-      erc7715: subscription.erc7715 || false,
-      color: subscription.color || "#6366F1",
-      tokenAddress: subscription.tokenAddress || "",
-      isAutoRenewing: subscription.isAutoRenewing || false,
-      recipient: subscription.ownerAddress || "",
-    });
+  const openEditModal = (sub: Subscription) => {
+    setFormState({ ...sub });
+    setCurrentSubscription(sub);
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (subscription: Subscription) => {
-    setCurrentSubscription(subscription);
+  const openDeleteModal = (sub: Subscription) => {
+    setCurrentSubscription(sub);
     setIsDeleteModalOpen(true);
   };
 
   const resetForm = () => {
     setFormState({
+      id: "",
       name: "",
       amount: "",
+      numericAmount: 0,
       frequency: "Monthly",
       nextPayment: "",
       category: "Entertainment",
@@ -700,219 +259,140 @@ export default function SubscriptionManagement() {
       description: "",
       contractAddress: "",
       erc7715: false,
-      color: "#6366F1",
       tokenAddress: "",
-      isAutoRenewing: false,
       recipient: "",
+      isAutoRenewing: false,
+      color: "#6366F1",
     });
   };
 
-  const calculateYearlyEstimate = (amount: number, frequency: string) => {
-    switch (frequency) {
-      case "Monthly":
-        return amount * 12;
-      case "Yearly":
-        return amount;
-      case "Quarterly":
-        return amount * 4;
-      case "Weekly":
-        return amount * 52;
-      case "Bi-weekly":
-        return amount * 26;
-      case "Daily":
-        return amount * 365;
-      default:
-        return amount * 12;
+  const validateForm = (): boolean => {
+    if (!formState.name.trim()) {
+      toast({ title: "Error", description: "Name is required." });
+      return false;
+    }
+    if (formState.erc7715 && !isConnected) {
+      toast({ title: "Error", description: "Wallet must be connected for ERC-7715." });
+      return false;
+    }
+    if (formState.erc7715 && !isAddress(formState.contractAddress || "")) {
+      toast({ title: "Error", description: "Invalid contract address." });
+      return false;
+    }
+    if (formState.erc7715 && !isAddress(formState.recipient || "")) {
+      toast({ title: "Error", description: "Invalid recipient address." });
+      return false;
+    }
+    return true;
+  };
+
+  const handleAddSubscription = () => {
+    if (!validateForm()) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const newSub: Subscription = {
+        id: `sub_${Date.now()}`,
+        name: formState.name,
+        amount: `$${parseFloat(formState.amount.replace(/[^0-9.]/g, "")).toFixed(2)}`,
+        numericAmount: parseFloat(formState.amount.replace(/[^0-9.]/g, "")),
+        frequency: formState.frequency,
+        nextPayment: formState.nextPayment,
+        category: formState.category,
+        paymentMethod: formState.paymentMethod,
+        status: formState.status,
+        description: formState.description,
+        contractAddress: formState.contractAddress,
+        erc7715: formState.erc7715,
+        tokenAddress: formState.tokenAddress,
+        recipient: formState.recipient,
+        isAutoRenewing: formState.isAutoRenewing,
+        color: formState.color,
+      };
+
+      setSubscriptions([...subscriptions, newSub]);
+      toast({ title: "Success", description: `${newSub.name} added.` });
+      setIsAddModalOpen(false);
+      resetForm();
+    } catch (e: any) {
+      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Navigation
-  const scrollToUpcoming = () => {
-    setActiveTab("upcoming");
-    if (upcomingRef.current) {
-      setTimeout(() => {
-        upcomingRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }
-    setShowNotificationBadge(false);
+  const handleUpdateSubscription = () => {
+    if (!currentSubscription || !validateForm()) return;
+
+    const updatedSub: Subscription = {
+      ...currentSubscription,
+      name: formState.name,
+      amount: `$${parseFloat(formState.amount.replace(/[^0-9.]/g, "")).toFixed(2)}`,
+      numericAmount: parseFloat(formState.amount.replace(/[^0-9.]/g, "")),
+      frequency: formState.frequency,
+      nextPayment: formState.nextPayment,
+      category: formState.category,
+      paymentMethod: formState.paymentMethod,
+      status: formState.status,
+      description: formState.description,
+      contractAddress: formState.contractAddress,
+      erc7715: formState.erc7715,
+      tokenAddress: formState.tokenAddress,
+      recipient: formState.recipient,
+      isAutoRenewing: formState.isAutoRenewing,
+      color: formState.color,
+    };
+
+    setSubscriptions(
+      subscriptions.map((sub) => (sub.id === currentSubscription.id ? updatedSub : sub))
+    );
+    toast({ title: "Updated", description: `${updatedSub.name} has been updated.` });
+    setIsEditModalOpen(false);
+    setCurrentSubscription(null);
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  const handleDeleteSubscription = () => {
+    if (!currentSubscription) return;
+
+    setSubscriptions(subscriptions.filter((sub) => sub.id !== currentSubscription?.id));
+    toast({ title: "Deleted", description: `${currentSubscription.name} removed.` });
+    setIsDeleteModalOpen(false);
+    setCurrentSubscription(null);
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 20 } },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } },
-    hover: { scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.12)", transition: { duration: 0.3 } },
-    highlight: {
-      scale: [1, 1.05, 1],
-      boxShadow: ["0 10px 30px rgba(0,0,0,0.12)", "0 10px 30px rgba(99, 102, 241, 0.7)", "0 10px 30px rgba(0,0,0,0.12)"],
-      transition: { duration: 1.5, repeat: 2, repeatType: "reverse" as const },
-    },
-  };
-
-  // Render
   return (
     <div className="container mx-auto p-6 space-y-8">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Subscription Management</h1>
-          <p className="text-muted-foreground">Track and manage your subscriptions</p>
+          <h1 className="text-3xl font-bold">Subscription Manager</h1>
+          <p className="text-muted-foreground">Track and manage recurring payments.</p>
         </div>
-        <div className="flex gap-2">
-          {isConnected ? (
-            <Button
-              onClick={() => sdk && loadSubscriptions(sdk)}
-              variant="outline"
-              disabled={isSyncing || isInitializing}
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" /> Sync On-chain
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => useWalletStore.getState().connectWallet()}
-            >
-              <Wallet className="h-4 w-4 mr-2" /> Connect Wallet
-            </Button>
-          )}
-          <Button onClick={() => setIsAddModalOpen(true)} variant="default">
-            <Plus className="h-4 w-4 mr-2" /> Add Subscription
-          </Button>
-        </div>
+        <Button onClick={openAddModal}>
+          <Plus className="mr-2 h-4 w-4" /> Add Subscription
+        </Button>
       </div>
 
-      {/* SDK Connection Status */}
-      {!isConnected && (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="mb-6 p-4 border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg"
-        >
-          <div className="flex items-center gap-3">
-            <Shield className="h-5 w-5 text-amber-500" />
-            <div className="flex-1">
-              <h3 className="font-medium">Connect your wallet to access on-chain subscriptions</h3>
-              <p className="text-sm text-muted-foreground">
-                Connect your wallet to view and manage your ERC-7715 subscriptions
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => useWalletStore.getState().connectWallet()}
-              disabled={isInitializing}
-            >
-              {isInitializing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Connecting
-                </>
-              ) : (
-                <>
-                  <Wallet className="h-4 w-4 mr-2" /> Connect
-                </>
-              )}
-            </Button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Stats */}
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" /> Monthly Spending
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <motion.p className="text-2xl font-bold">{formatCurrency(totalMonthlySpending)}</motion.p>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" /> Yearly Spending
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <motion.p className="text-2xl font-bold">{formatCurrency(yearlySpending)}</motion.p>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" /> Active Subscriptions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <motion.p className="text-2xl font-bold">{activeSubscriptions}</motion.p>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" /> ERC-7715 Subscriptions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <motion.p className="text-2xl font-bold">{erc7715Subscriptions}</motion.p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* Tabs and Filters */}
+      {/* Tabs & Filters */}
       <div className="flex justify-between items-center">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="all">All ({getCounts("all")})</TabsTrigger>
             <TabsTrigger value="active">Active ({getCounts("active")})</TabsTrigger>
-            <TabsTrigger value="shared">Shared ({getCounts("shared")})</TabsTrigger>
+            <TabsTrigger value="paused">Paused ({getCounts("paused")})</TabsTrigger>
             <TabsTrigger value="erc7715">ERC-7715 ({getCounts("erc7715")})</TabsTrigger>
-            <TabsTrigger value="upcoming">
-              Upcoming ({getCounts("upcoming")})
-              {showNotificationBadge && getCounts("upcoming") > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {getCounts("upcoming")}
-                </Badge>
-              )}
-            </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Input
-            placeholder="Search subscriptions..."
+            placeholder="Search..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-64"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64"
           />
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-32">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -922,254 +402,167 @@ export default function SubscriptionManagement() {
               <SelectItem value="category">Category</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            onClick={() => setIsViewMode(isViewMode === "grid" ? "list" : "grid")}
-          >
-            {isViewMode === "grid" ? "List View" : "Grid View"}
-          </Button>
         </div>
       </div>
 
-      {/* Subscriptions Grid/List */}
+      {/* Subscription List */}
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className={isViewMode === "grid" ? "grid grid-cols-1 md:grid-cols-3 gap-6" : "space-y-4"}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ staggerChildren: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
       >
-        {filteredSubscriptions.map(sub => (
-          <motion.div
-            key={sub.id}
-            variants={isViewMode === "grid" ? cardVariants : itemVariants}
-            initial="hidden"
-            animate={highlightedCard === sub.id ? "highlight" : "visible"}
-            whileHover="hover"
-          >
-            <Card className={sub.isOnchain ? "border-primary/30" : ""}>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{sub.name}</CardTitle>
-                    {sub.isOnchain && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="bg-primary/10 text-primary border-primary/20 flex items-center gap-1"
-                            >
-                              <LinkIcon className="h-3 w-3" /> On-chain
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>This is an on-chain ERC-7715 subscription</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
+        {filteredSubscriptions.map((sub) => (
+          <motion.div key={sub.id} layout>
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle>{sub.name}</CardTitle>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {!sub.isOnchain && (
-                        <DropdownMenuItem onClick={() => openEditModal(sub)}>
-                          <Edit className="h-4 w-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                      )}
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditModal(sub)}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => window.open(`https://etherscan.io/address/${sub.contractAddress}`, '_blank')}
-                        disabled={!sub.isOnchain || !sub.contractAddress}
+                        onClick={() => window.open(`https://etherscan.io/address/ ${sub.contractAddress}`, "_blank")}
+                        disabled={!sub.erc7715 || !sub.contractAddress}
                       >
-                        <ExternalLink className="h-4 w-4 mr-2" /> View on Explorer
+                        <ExternalLink className="mr-2 h-4 w-4" /> View on Etherscan
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => openDeleteModal(sub)}
                         className="text-destructive"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" /> {sub.isOnchain ? "Revoke" : "Delete"}
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <div className="flex gap-2">
-                  <Badge className={`${statusVariants[sub.status].bg} ${statusVariants[sub.status].text}`}>
-                    {React.createElement(statusVariants[sub.status].icon, { className: "h-4 w-4 mr-1" })}
+                <div className="flex gap-2 mt-2">
+                  <Badge
+                    variant="secondary"
+                    className={`${statusVariants[sub.status].bg} ${statusVariants[sub.status].text}`}
+                  >
+                    {React.createElement(statusVariants[sub.status].icon, {
+                      className: "h-4 w-4 mr-1",
+                    })}
                     {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                   </Badge>
                   {sub.erc7715 && (
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                    >
-                      <Sparkles className="h-3 w-3 mr-1" /> ERC-7715
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      ERC-7715
                     </Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{sub.amount}</p>
+                <p className="text-xl font-semibold">{sub.amount}</p>
                 <p className="text-sm text-muted-foreground">{sub.frequency}</p>
-                <p className="text-sm">Next Payment: {sub.nextPayment}</p>
+                <p className="text-sm mt-1">Next Payment: {sub.nextPayment}</p>
                 <p className="text-sm">Category: {sub.category}</p>
-                {sub.remainingDays !== undefined && (
-                  <p className="text-sm text-muted-foreground">
-                    Due in: {getRemainingDaysText(sub.remainingDays)}
-                  </p>
-                )}
-                {sub.isOnchain && sub.lastSync && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Last synced: {new Date(sub.lastSync).toLocaleString()}
-                  </p>
-                )}
               </CardContent>
-              <CardFooter className="flex justify-between">
-                {sub.isOnchain && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-primary">
-                          <Zap className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Powered by ERC-7715</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+              <CardFooter className="bg-muted/20 py-2 px-4 flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  Created: {new Date().toLocaleDateString()}
+                </span>
+                {sub.erc7715 && <Zap className="h-4 w-4 text-yellow-500" />}
               </CardFooter>
             </Card>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* Upcoming Subscriptions Section */}
-      <div ref={upcomingRef}>
-        <h2 className="text-2xl font-bold mb-4">Upcoming Payments</h2>
-        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
-          {upcomingSubscriptions.length === 0 ? (
-            <p className="text-muted-foreground">No upcoming payments in the next 7 days.</p>
-          ) : (
-            upcomingSubscriptions.map(sub => (
-              <motion.div key={sub.id} variants={itemVariants}>
-                <Card>
-                  <CardContent className="flex justify-between items-center p-4">
-                    <div>
-                      <p className="font-medium">{sub.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {sub.amount} • Due {getRemainingDaysText(sub.remainingDays)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </motion.div>
-      </div>
-
-      {/* Add Subscription Modal */}
+      {/* Add Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Subscription</DialogTitle>
-            <DialogDescription>Add a new subscription to track your recurring payments</DialogDescription>
+            <DialogDescription>Enter subscription details to add it.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
+              <Label htmlFor="name" className="text-right">Name</Label>
               <Input
                 id="name"
                 value={formState.name}
-                onChange={e => handleFormChange("name", e.target.value)}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
+              <Label htmlFor="amount" className="text-right">Amount</Label>
               <Input
                 id="amount"
                 value={formState.amount}
-                onChange={e => handleFormChange("amount", e.target.value)}
+                onChange={(e) => handleInputChange("amount", e.target.value)}
                 placeholder="$0.00"
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="frequency" className="text-right">
-                Frequency
-              </Label>
+              <Label htmlFor="frequency" className="text-right">Frequency</Label>
               <Select
                 value={formState.frequency}
-                onValueChange={value => handleFormChange("frequency", value)}
+                onValueChange={(value) => handleInputChange("frequency", value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select frequency" />
                 </SelectTrigger>
                 <SelectContent>
-                  {frequencies.map(frequency => (
-                    <SelectItem key={frequency} value={frequency}>
-                      {frequency}
+                  {frequencies.map((freq) => (
+                    <SelectItem key={freq} value={freq}>
+                      {freq}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nextPayment" className="text-right">
-                Next Payment
-              </Label>
+              <Label htmlFor="nextPayment" className="text-right">Next Payment</Label>
               <Input
                 id="nextPayment"
                 type="date"
                 value={formState.nextPayment}
-                onChange={e => handleFormChange("nextPayment", e.target.value)}
+                onChange={(e) => handleInputChange("nextPayment", e.target.value)}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Category
-              </Label>
+              <Label htmlFor="category" className="text-right">Category</Label>
               <Select
                 value={formState.category}
-                onValueChange={value => handleFormChange("category", value)}
+                onValueChange={(value) => handleInputChange("category", value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="paymentMethod" className="text-right">
-                Payment Method
-              </Label>
+              <Label htmlFor="paymentMethod" className="text-right">Payment Method</Label>
               <Select
                 value={formState.paymentMethod}
-                onValueChange={value => handleFormChange("paymentMethod", value)}
+                onValueChange={(value) => handleInputChange("paymentMethod", value)}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select payment method" />
+                  <SelectValue placeholder="Select method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {paymentMethods.map(method => (
+                  {paymentMethods.map((method) => (
                     <SelectItem key={method} value={method}>
                       {method}
                     </SelectItem>
@@ -1178,13 +571,11 @@ export default function SubscriptionManagement() {
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Description
-              </Label>
+              <Label htmlFor="description" className="text-right">Description</Label>
               <Input
                 id="description"
                 value={formState.description}
-                onChange={e => handleFormChange("description", e.target.value)}
+                onChange={(e) => handleInputChange("description", e.target.value)}
                 className="col-span-3"
               />
             </div>
@@ -1194,21 +585,9 @@ export default function SubscriptionManagement() {
                 <Switch
                   id="erc7715"
                   checked={formState.erc7715}
-                  onCheckedChange={checked => handleFormChange("erc7715", checked)}
+                  onCheckedChange={(checked) => handleInputChange("erc7715", checked)}
                 />
-                <Label htmlFor="erc7715">
-                  <div className="flex items-center gap-2">
-                    Enable ERC-7715 Standard
-                    {!isConnected && formState.erc7715 && (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 bg-amber-50 border-amber-200"
-                      >
-                        Requires wallet connection
-                      </Badge>
-                    )}
-                  </div>
-                </Label>
+                <Label htmlFor="erc7715">Enable ERC-7715 Standard</Label>
               </div>
             </div>
             {formState.erc7715 && (
@@ -1220,256 +599,163 @@ export default function SubscriptionManagement() {
                   <Input
                     id="contractAddress"
                     value={formState.contractAddress}
-                    onChange={e => handleFormChange("contractAddress", e.target.value)}
+                    onChange={(e) => handleInputChange("contractAddress", e.target.value)}
                     placeholder="0x..."
                     className="col-span-3"
                   />
                 </div>
-                {isConnected && (
-                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="tokenAddress" className="text-right">
-                        Token
-                      </Label>
-                      <Select
-                        value={formState.tokenAddress}
-                        onValueChange={value => handleFormChange("tokenAddress", value)}
-                        disabled={isLoadingTokens}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue
-                            placeholder={isLoadingTokens ? "Loading tokens..." : "Select token"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {supportedTokens.map(token => (
-                            <SelectItem key={token.address} value={token.address}>
-                              <div className="flex items-center gap-2">
-                                {token.logo && (
-                                  <div className="w-4 h-4 rounded-full overflow-hidden">
-                                    <img
-                                      src={token.logo}
-                                      alt={token.symbol}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                )}
-                                {token.symbol} - {token.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="recipient" className="text-right">
-                        Recipient
-                      </Label>
-                      <Input
-                        id="recipient"
-                        value={formState.recipient || ""}
-                        onChange={e => handleFormChange("recipient", e.target.value)}
-                        placeholder="0x..."
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label className="text-right">Auto-renewing</Label>
-                      <div className="flex items-center space-x-2 col-span-3">
-                        <Switch
-                          id="isAutoRenewing"
-                          checked={formState.isAutoRenewing}
-                          onCheckedChange={checked => handleFormChange("isAutoRenewing", checked)}
-                        />
-                        <Label htmlFor="isAutoRenewing">Automatically renew subscription</Label>
-                      </div>
-                    </div>
-                  </>
-                )}
-                {!isConnected && (
-                  <div className="col-span-4 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md border border-amber-200 dark:border-amber-800 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-amber-500" />
-                      <p>Connect your wallet to create on-chain ERC-7715 subscriptions</p>
-                    </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="tokenAddress" className="text-right">Token Address</Label>
+                  <Input
+                    id="tokenAddress"
+                    value={formState.tokenAddress}
+                    onChange={(e) => handleInputChange("tokenAddress", e.target.value)}
+                    placeholder="0x..."
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="recipient" className="text-right">Recipient</Label>
+                  <Input
+                    id="recipient"
+                    value={formState.recipient}
+                    onChange={(e) => handleInputChange("recipient", e.target.value)}
+                    placeholder="0x..."
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Auto-Renew</Label>
+                  <div className="flex items-center space-x-2 col-span-3">
+                    <Switch
+                      checked={formState.isAutoRenewing}
+                      onCheckedChange={(checked) =>
+                        handleInputChange("isAutoRenewing", checked)
+                      }
+                    />
+                    <Label>Enable auto-renewal</Label>
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>
           <DialogFooter>
             <Button
-              type="submit"
               onClick={handleAddSubscription}
-              disabled={isSubmitting || (formState.erc7715 && !isConnected)}
+              disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Subscription"
-              )}
+              {isSubmitting ? "Saving..." : "Add Subscription"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Subscription Modal */}
+      {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Subscription</DialogTitle>
-            <DialogDescription>Update your subscription details</DialogDescription>
+            <DialogDescription>Update the subscription details below.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
+              <Label htmlFor="name" className="text-right">Name</Label>
               <Input
                 id="name"
                 value={formState.name}
-                onChange={e => handleFormChange("name", e.target.value)}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
+              <Label htmlFor="amount" className="text-right">Amount</Label>
               <Input
                 id="amount"
                 value={formState.amount}
-                onChange={e => handleFormChange("amount", e.target.value)}
+                onChange={(e) => handleInputChange("amount", e.target.value)}
                 placeholder="$0.00"
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="frequency" className="text-right">
-                Frequency
-              </Label>
+              <Label htmlFor="frequency" className="text-right">Frequency</Label>
               <Select
                 value={formState.frequency}
-                onValueChange={value => handleFormChange("frequency", value)}
+                onValueChange={(value) => handleInputChange("frequency", value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select frequency" />
                 </SelectTrigger>
                 <SelectContent>
-                  {frequencies.map(frequency => (
-                    <SelectItem key={frequency} value={frequency}>
-                      {frequency}
+                  {frequencies.map((freq) => (
+                    <SelectItem key={freq} value={freq}>
+                      {freq}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nextPayment" className="text-right">
-                Next Payment
-              </Label>
+              <Label htmlFor="nextPayment" className="text-right">Next Payment</Label>
               <Input
                 id="nextPayment"
                 type="date"
                 value={formState.nextPayment}
-                onChange={e => handleFormChange("nextPayment", e.target.value)}
+                onChange={(e) => handleInputChange("nextPayment", e.target.value)}
                 className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Category
-              </Label>
+              <Label htmlFor="category" className="text-right">Category</Label>
               <Select
                 value={formState.category}
-                onValueChange={value => handleFormChange("category", value)}
+                onValueChange={(value) => handleInputChange("category", value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="paymentMethod" className="text-right">
-                Payment Method
-              </Label>
-              <Select
-                value={formState.paymentMethod}
-                onValueChange={value => handleFormChange("paymentMethod", value)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map(method => (
-                    <SelectItem key={method} value={method}>
-                      {method}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Description
-              </Label>
+              <Label htmlFor="description" className="text-right">Description</Label>
               <Input
                 id="description"
                 value={formState.description}
-                onChange={e => handleFormChange("description", e.target.value)}
+                onChange={(e) => handleInputChange("description", e.target.value)}
                 className="col-span-3"
               />
             </div>
           </div>
           <DialogFooter>
             <Button
-              type="submit"
-              onClick={handleEditSubscription}
+              onClick={handleUpdateSubscription}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Subscription"
-              )}
+              {isSubmitting ? "Updating..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Subscription Modal */}
+      {/* Delete Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {currentSubscription?.isOnchain ? "Revoke Subscription" : "Delete Subscription"}
-            </DialogTitle>
+            <DialogTitle>Delete Subscription</DialogTitle>
             <DialogDescription>
-              Are you sure you want to {currentSubscription?.isOnchain ? "revoke" : "delete"}{" "}
-              {currentSubscription?.name}?{" "}
-              {currentSubscription?.isOnchain
-                ? "This will cancel the on-chain permission."
-                : "This action cannot be undone."}
+              Are you sure you want to delete{" "}
+              <strong>{currentSubscription?.name}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -1477,14 +763,7 @@ export default function SubscriptionManagement() {
               onClick={handleDeleteSubscription}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {currentSubscription?.isOnchain ? "Revoking..." : "Deleting..."}
-                </>
-              ) : (
-                currentSubscription?.isOnchain ? "Revoke" : "Delete"
-              )}
+              {isSubmitting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
