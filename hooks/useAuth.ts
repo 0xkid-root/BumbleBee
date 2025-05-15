@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi"
+import { injected } from "wagmi/connectors"
 import { useRouter } from "next/navigation"
 import { getUserByWalletAddress, createUser } from "@/lib/idb"
 import type { AuthUser, AuthHookResult } from "@/types/auth"
@@ -12,7 +13,17 @@ export function useAuth(): AuthHookResult {
   
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const { connectAsync } = useConnect()
   const chainId = useChainId()
+
+  const connectWallet = async () => {
+    try {
+      await connectAsync({ connector: injected() })
+    } catch (error) {
+      console.error('Error connecting wallet:', error)
+      throw error
+    }
+  }
   const router = useRouter()
 
   useEffect(() => {
@@ -95,6 +106,7 @@ export function useAuth(): AuthHookResult {
     chainId,
     showRegistration,
     disconnect,
+    connectWallet,
     registerUser,
     setShowRegistration
   }

@@ -14,5 +14,6 @@ export interface AuthHookResult {
   showRegistration: boolean
   registerUser: (userData: { name: string }) => Promise<void>
   disconnect: () => void
+  connectWallet: (args?: { connector?: any }) => Promise<void>
   setShowRegistration: (show: boolean) => void
 }

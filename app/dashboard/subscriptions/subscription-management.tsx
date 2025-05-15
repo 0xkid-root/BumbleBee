@@ -204,8 +204,12 @@ export default function SubscriptionManagement() {
             }
           }
 
+          if (!address) {
+            throw new Error('Wallet address is required');
+          }
+
           const sdkConfig: BumblebeeSdkConfig = {
-            address,
+            address: address as `0x${string}`,
             network: chainId === 1 ? Network.Mainnet : Network.Sepolia,
           };
 

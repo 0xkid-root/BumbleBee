@@ -1,0 +1,3 @@
+NEXT_PUBLIC_GAIA_NET_API_KEY=your_api_key_here
+NEXT_PUBLIC_DELEGATION_CONTRACT_ADDRESS=0x...your_contract_address
+NEXT_PUBLIC_MAINNET_RPC_URL=https://your.mainnet.rpc.url
