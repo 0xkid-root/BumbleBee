@@ -702,7 +702,7 @@ export function DashboardSidebar({ isCollapsed: propIsCollapsed, setIsCollapsed 
         variants={sidebarVariants}
         initial={false}
         animate={isCollapsed ? "collapsed" : "expanded"}
-        className={cn("hidden md:flex flex-col border-r bg-card h-screen shadow-md will-change-[width] overflow-y-auto")}
+        className={cn("hidden md:flex flex-col border-r bg-card h-screen shadow-md will-change-[width] overflow-hidden sticky top-0")}
         style={{ width: isCollapsed ? "70px" : "280px" }}
         role="complementary"
         aria-label="Sidebar"
