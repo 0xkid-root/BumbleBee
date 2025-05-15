@@ -34,7 +34,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
 import { RegistrationModal } from "@/components/auth/registration-modal"
-import { addToWaitlist } from "@/lib/weavedb"
 import { useRouter } from "next/navigation"
 
 // Waitlist form schema with validation

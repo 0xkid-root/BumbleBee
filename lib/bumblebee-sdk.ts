@@ -795,9 +795,24 @@ export class BumblebeeSDK {
   }
 
   static async create(config: BumblebeeSdkConfig): Promise<BumblebeeSDK> {
-    this.validateConfig(config)
-    
-    const sdk = new BumblebeeSDK(config)
+    if (!config.address || !isAddress(config.address)) {
+      throw new Error('Invalid wallet address')
+    }
+
+    const sdk = new BumblebeeSDK({
+      ...config,
+      gaiaNetApiKey: env.GAIA_NET_API_KEY,
+      delegationContract: env.DELEGATION_CONTRACT_ADDRESS,
+    })
+
+    if (!env.GAIA_NET_API_KEY) {
+      console.warn('GAIA_NET_API_KEY not provided, some features may be limited')
+    }
+
+    if (!env.DELEGATION_CONTRACT_ADDRESS) {
+      console.warn('DELEGATION_CONTRACT_ADDRESS not provided, delegation features will be disabled')
+    }
+
     await sdk.init()
     return sdk
   }
@@ -811,12 +826,6 @@ export class BumblebeeSDK {
   private contracts: Map<string, Contract> = new Map()
   private wallet: any // Add wallet property to fix TypeScript error
 
-  constructor(config: BumblebeeSdkConfig) {
-    this.client = createPublicClient({
-      chain: NETWORK_CONFIGS[config.network].chain,
-      transport: http(NETWORK_CONFIGS[config.network].rpcUrl)
-    })
-  }
   
   // Add init method to fix TypeScript error in subscription management component
   async init(): Promise<void> {
