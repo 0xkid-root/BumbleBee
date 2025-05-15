@@ -139,69 +139,7 @@ const pulseVariants = {
   },
 };
 
-// Mock data for AI insights
-const mockInsights = [
-  {
-    id: 1,
-    title: "Portfolio Rebalance",
-    description:
-      "Your portfolio is heavily weighted in ETH (80%). Consider diversifying to reduce risk.",
-    impact: "high",
-    type: "suggestion",
-  },
-  {
-    id: 2,
-    title: "Gas Optimization",
-    description:
-      "Current gas prices are high. Consider scheduling non-urgent transactions for later.",
-    impact: "medium",
-    type: "alert",
-  },
-  {
-    id: 3,
-    title: "Yield Opportunity",
-    description: "Your USDC could earn 5.2% APY in the Aave protocol.",
-    impact: "medium",
-    type: "opportunity",
-  },
-  {
-    id: 4,
-    title: "Smart Savings",
-    description:
-      "Based on your transaction patterns, you could save ~$12/month on gas fees by batching transfers.",
-    impact: "low",
-    type: "suggestion",
-  },
-];
 
-// Mock data for recurring payments
-const mockRecurringPayments = [
-  {
-    id: 1,
-    name: "Crypto News Premium",
-    amount: "10 USDC",
-    frequency: "Monthly",
-    nextPayment: "May 20, 2025",
-    icon: "📰",
-  },
-  {
-    id: 2,
-    name: "NFT Marketplace Pro",
-    amount: "0.01 ETH",
-    frequency: "Monthly",
-    nextPayment: "May 15, 2025",
-    icon: "🖼️",
-  },
-];
-
-// Mock data for AI chat messages
-const initialMessages = [
-  {
-    role: "assistant",
-    content:
-      "Hello! I'm your AI financial assistant. How can I help you with your crypto today?",
-  },
-];
 
 // Define a minimal interface for Ethereum Provider
 interface EthereumProvider {
@@ -211,7 +149,7 @@ interface EthereumProvider {
 
 export default function WalletPageClient(): React.ReactElement {
   const router = useRouter();
-  // Track component loading state
+  // Track component loading state with aria-busy for accessibility
   const [isLoading, setIsLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const { isConnected: wagmiConnected, address: wagmiAddress } = useAccount();
@@ -221,6 +159,31 @@ export default function WalletPageClient(): React.ReactElement {
     assets: walletAssets,
     connectWallet,
   } = useWalletStore();
+
+  // Accessibility announcement for screen readers
+  useEffect(() => {
+    if (isLoading) {
+      document.title = "Loading... | Bumblebee Wallet";
+    } else {
+      document.title = "Bumblebee Wallet";
+    }
+  }, [isLoading]);
+
+  // Handle keyboard navigation
+  const handleKeyPress = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setIsDelegationModalOpen(false);
+      setIsConnectWalletModalOpen(false);
+      setIsSendModalOpen(false);
+      setIsReceiveModalOpen(false);
+      setIsSwapModalOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   // Clear connection error when wallet connects
   useEffect(() => {
@@ -251,10 +214,8 @@ export default function WalletPageClient(): React.ReactElement {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] =
     useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
   const [showAIInsights, setShowAIInsights] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [messages, setMessages] = useState(initialMessages);
   const [inputMessage, setInputMessage] = useState("");
   const [portfolioScore, setPortfolioScore] = useState(78);
   const [showAISettings, setShowAISettings] = useState(false);
@@ -543,43 +504,6 @@ export default function WalletPageClient(): React.ReactElement {
     await createDelegationWithCaveats();
   };
 
-  const handleAnalyzePortfolio = () => {
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setShowAIInsights(true);
-    }, 2000);
-  };
-
-  const handleSendMessage = () => {
-    if (inputMessage.trim() === "") return;
-
-    setMessages((prev) => [...prev, { role: "user", content: inputMessage }]);
-
-    setTimeout(() => {
-      let response;
-      if (inputMessage.toLowerCase().includes("swap")) {
-        response =
-          "I can help you swap tokens. Would you like me to find the best rate for a specific pair?";
-      } else if (inputMessage.toLowerCase().includes("gas")) {
-        response =
-          "Current gas prices are around 25 gwei. Based on historical data, prices should be lower in about 3 hours.";
-      } else if (inputMessage.toLowerCase().includes("portfolio")) {
-        response =
-          "Your portfolio has grown 3.2% this week, outperforming BTC by 0.8%.";
-      } else {
-        response =
-          "Can you provide more details about what you'd like to know?";
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: response },
-      ]);
-    }, 1000);
-
-    setInputMessage("");
-  };
 
   const handleConnectWallet = async () => {
     try {
@@ -609,59 +533,6 @@ export default function WalletPageClient(): React.ReactElement {
     setConnectionError(null);
   };
 
-  const handleSendAsset = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === "number" ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price:
-        asset.price ||
-        (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || "",
-    } as unknown as WalletAsset;
-    setSelectedAsset(compatibleAsset);
-    setIsSendModalOpen(true);
-  };
-
-  const handleReceiveAsset = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === "number" ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price:
-        asset.price ||
-        (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || "",
-    } as unknown as WalletAsset;
-    setSelectedAsset(compatibleAsset);
-    setIsReceiveModalOpen(true);
-  };
-
-  const handleSwapAssets = (asset: Asset) => {
-    // Convert the asset type to ensure compatibility with the wallet store Asset type
-    const compatibleAsset = {
-      id: typeof asset.id === "number" ? asset.id.toString() : asset.id,
-      name: asset.name,
-      symbol: asset.symbol,
-      amount: asset.balance || asset.amount || 0,
-      value: asset.usdValue || asset.value || 0,
-      price:
-        asset.price ||
-        (asset.balance && asset.usdValue ? asset.usdValue / asset.balance : 0),
-      change24h: asset.change24h || 0,
-      logo: asset.icon || asset.logo || "",
-    } as unknown as WalletAsset;
-    setSelectedAsset(compatibleAsset);
-    setIsSwapModalOpen(true);
-  };
 
   const handleCloseSendModal = () => {
     setIsSendModalOpen(false);
@@ -682,22 +553,28 @@ export default function WalletPageClient(): React.ReactElement {
   const demoWalletAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 bg-gradient-to-br from-gray-900 to-blue-900 relative">
+    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6  relative">
       {/* Global loading overlay */}
       {isLoading && (
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div 
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          role="progressbar"
+          aria-busy="true"
+          aria-label="Loading content"
+        >
           <div className="bg-card p-6 rounded-lg shadow-xl flex flex-col items-center">
-            <div className="relative h-16 w-16 mb-4">
+            <div className="relative h-16 w-16 mb-4" aria-hidden="true">
               <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
               <div className="absolute inset-2 rounded-full border-4 border-t-transparent border-r-primary border-b-transparent border-l-transparent animate-spin animation-delay-150"></div>
               <div className="absolute inset-4 rounded-full border-4 border-t-transparent border-r-transparent border-b-primary border-l-transparent animate-spin animation-delay-300"></div>
             </div>
-            <p className="text-white font-medium">
+            <p className="text-white font-medium" role="status">
               {isCreatingAccounts
                 ? "Setting up smart accounts..."
                 : isCreatingDelegation
                 ? "Creating delegation..."
                 : "Loading..."}
+              <span className="sr-only">Please wait while the content loads</span>
             </p>
           </div>
         </div>
@@ -709,8 +586,10 @@ export default function WalletPageClient(): React.ReactElement {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-destructive/20 border border-destructive text-white p-4 rounded-lg mb-4 flex items-start"
+          role="alert"
+          aria-live="polite"
         >
-          <div className="flex-shrink-0 mr-3 mt-0.5">
+          <div className="flex-shrink-0 mr-3 mt-0.5" aria-hidden="true">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 text-destructive"
@@ -725,13 +604,14 @@ export default function WalletPageClient(): React.ReactElement {
             </svg>
           </div>
           <div>
-            <p className="font-medium">Error</p>
-            <p className="text-sm">{delegationError}</p>
+            <p className="font-medium" id="error-heading">Error</p>
+            <p className="text-sm" id="error-message" aria-describedby="error-heading">{delegationError}</p>
             <Button
               variant="outline"
               size="sm"
               className="mt-2 bg-white/10 hover:bg-white/20 text-white border-white/20"
               onClick={() => setDelegationError(null)}
+              aria-label="Dismiss error message"
             >
               Dismiss
             </Button>
@@ -749,8 +629,8 @@ export default function WalletPageClient(): React.ReactElement {
             <SectionTitle
               title="Bumblebee Wallet"
               subtitle="Smart financial management powered by AI"
-              className="text-left"
-              titleClassName="text-2xl md:text-3xl flex items-center text-white"
+              className="text-left "
+              titleClassName="text-2xl md:text-3xl flex items-center text-amber-500"
               subtitleClassName="text-sm md:text-base max-w-none text-left text-gray-300"
             />
             {isConnected && (
@@ -758,13 +638,7 @@ export default function WalletPageClient(): React.ReactElement {
                 className="flex items-center bg-white/10 backdrop-blur-md p-2 rounded-lg text-sm border border-white/20"
                 variants={fadeInVariants}
               >
-                <div className="hidden md:flex items-center mr-2">
-                  <Avatar className="h-6 w-6 mr-2 bg-gradient-to-r from-blue-500 to-purple-500">
-                    <span className="text-xs text-white">
-                      {address ? address.slice(0, 2) : ""}
-                    </span>
-                  </Avatar>
-                </div>
+
                 <div className="flex items-center">
                   <span className="text-sm font-medium text-white mr-1">
                     {address
@@ -837,227 +711,181 @@ export default function WalletPageClient(): React.ReactElement {
           </>
         ) : (
           <>
-            <motion.div variants={itemVariants}>
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
-              >
-                <TabsList className="grid grid-cols-4 mb-6 bg-white/10 backdrop-blur-md border border-white/20">
-                  <TabsTrigger
-                    value="overview"
-                    className="flex items-center gap-2 text-white"
-                  >
-                    <PieChart className="h-4 w-4" />
-                    <span className="hidden md:inline">Overview</span>
-                  </TabsTrigger>
-                 
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Smart Wallet Setup Card */}
-                    {isConnected && !delegationComplete && (
-                      <motion.div variants={itemVariants} className="mb-8">
-                        <Card className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 border border-blue-500/30 overflow-hidden">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-xl text-white flex items-center gap-2">
-                              <Sparkles className="h-5 w-5 text-blue-400" />
-                              Smart Wallet Setup
-                            </CardTitle>
-                            <CardDescription className="text-blue-200">
-                              Set up your AI-powered smart wallet to enable
-                              advanced features
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-4">
-                                <div className="bg-blue-500/20 p-3 rounded-full">
-                                  <Wallet className="h-6 w-6 text-blue-300" />
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="text-white font-medium">
-                                    Create Smart Account
-                                  </h3>
-                                  <p className="text-sm text-blue-200">
-                                    Deploy a smart contract wallet linked to
-                                    your EOA
-                                  </p>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  className="bg-blue-500/20 border-blue-500/30 text-white hover:bg-blue-500/30"
-                                  onClick={setupAccounts}
-                                  disabled={
-                                    isCreatingAccounts ||
-                                    delegatorAccount !== undefined
-                                  }
-                                >
-                                  {delegatorAccount ? "Done" : "Setup"}
-                                </Button>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className="bg-purple-500/20 p-3 rounded-full">
-                                  <Sparkles className="h-6 w-6 text-purple-300" />
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="text-white font-medium">
-                                    Create AI Delegation
-                                  </h3>
-                                  <p className="text-sm text-blue-200">
-                                    Enable AI assistant to perform actions on
-                                    your behalf
-                                  </p>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  className="bg-purple-500/20 border-purple-500/30 text-white hover:bg-purple-500/30"
-                                  onClick={handleCreateDelegation}
-                                  disabled={
-                                    isCreatingDelegation ||
-                                    !delegatorAccount ||
-                                    delegationComplete
-                                  }
-                                >
-                                  {delegationComplete ? "Done" : "Setup"}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    )}
-
-                   
-
+           <motion.div variants={itemVariants}>
+  <div className="w-full">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row w-full">
+        {/* Smart Wallet Setup Card */}
+        {isConnected && !delegationComplete && (
+          <motion.div variants={itemVariants} className="mb-8">
+            <Card className="bg-white border border-blue-500/30  overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-black flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-blue-400" />
+                  Smart Wallet Setup
+                </CardTitle>
+                <CardDescription className="text-black">
+                  Set up your AI-powered smart wallet to enable advanced features
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-500/20 p-3 rounded-full">
+                      <Wallet className="h-6 w-6 text-blue-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-black font-medium">Create Smart Account</h3>
+                      <p className="text-sm text-blue-200">
+                        Deploy a smart contract wallet linked to your EOA
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="bg-blue-500/20 border-blue-500/30 text-white hover:bg-blue-500/30"
+                      onClick={setupAccounts}
+                      disabled={isCreatingAccounts || delegatorAccount !== undefined}
+                    >
+                      {delegatorAccount ? "Done" : "Setup"}
+                    </Button>
                   </div>
-                  <motion.div variants={cardHoverVariants} whileHover="hover">
-                    <Card className="bg-white/10 backdrop-blur-md border border-white/20">
-                      <CardHeader className="pb-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20">
-                        <CardTitle className="text-lg text-white">
-                          Recent Transactions
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {[
-                            {
-                              type: "Received ETH",
-                              date: "May 10, 2025 • 14:23",
-                              amount: "+0.15 ETH",
-                              usd: "$421.32",
-                              icon: ArrowDown,
-                              color: "green",
-                            },
-                            {
-                              type: "Swapped ETH for USDC",
-                              date: "May 9, 2025 • 09:13",
-                              amount: "-0.3 ETH",
-                              usd: "+842.65 USDC",
-                              icon: ArrowUpDown,
-                              color: "blue",
-                            },
-                          ].map((tx, index) => (
-                            <motion.div
-                              key={index}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.1 }}
-                              className="flex items-center justify-between p-2 hover:bg-white/10 rounded-lg"
-                            >
-                              <div className="flex items-center">
-                                <div
-                                  className={`bg-${tx.color}-100/20 p-2 rounded-full mr-3`}
-                                >
-                                  {tx.icon === ArrowDown ? (
-                                    <ArrowDown className="h-4 w-4 text-green-300" />
-                                  ) : (
-                                    <ArrowUpDown className="h-4 w-4 text-blue-300" />
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-white">
-                                    {tx.type}
-                                  </p>
-                                  <p className="text-xs text-gray-400">
-                                    {tx.date}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-medium text-white">
-                                  {tx.amount}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {tx.usd}
-                                </p>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
+
+                  <div className="flex items-center gap-4">
+                    <div className="bg-purple-500/20 p-3 rounded-full">
+                      <Sparkles className="h-6 w-6 text-purple-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium">Create AI Delegation</h3>
+                      <p className="text-sm text-blue-200">
+                        Enable AI assistant to perform actions on your behalf
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="bg-purple-500/20 border-purple-500/30 text-white hover:bg-purple-500/30"
+                      onClick={handleCreateDelegation}
+                      disabled={isCreatingDelegation || !delegatorAccount || delegationComplete}
+                    >
+                      {delegationComplete ? "Done" : "Setup"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </div>
+
+      <motion.div variants={cardHoverVariants} whileHover="hover">
+        <Card className="bg-white/10 backdrop-blur-md border border-white/20">
+          <CardHeader className="pb-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20">
+            <CardTitle className="text-lg text-white">Recent Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                {
+                  type: "Received ETH",
+                  date: "May 10, 2025 • 14:23",
+                  amount: "+0.15 ETH",
+                  usd: "$421.32",
+                  icon: ArrowDown,
+                  color: "green",
+                },
+                {
+                  type: "Swapped ETH for USDC",
+                  date: "May 9, 2025 • 09:13",
+                  amount: "-0.3 ETH",
+                  usd: "+842.65 USDC",
+                  icon: ArrowUpDown,
+                  color: "blue",
+                },
+              ].map((tx, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-2 hover:bg-white/10 rounded-lg"
+                >
+                  <div className="flex items-center">
+                    <div className={`bg-${tx.color}-100/20 p-2 rounded-full mr-3`}>
+                      {tx.icon === ArrowDown ? (
+                        <ArrowDown className="h-4 w-4 text-green-300" />
+                      ) : (
+                        <ArrowUpDown className="h-4 w-4 text-blue-300" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{tx.type}</p>
+                      <p className="text-xs text-gray-400">{tx.date}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-white">{tx.amount}</p>
+                    <p className="text-xs text-gray-400">{tx.usd}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-amber-800">AI Delegation</CardTitle>
+            <CardDescription className="text-amber-600">
+              Enable AI-powered transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              <div className="text-sm text-amber-700">
+                {delegationComplete
+                  ? "AI delegation is active! Your AI assistant can now create tokens on your behalf."
+                  : "Delegate token creation capabilities to your AI assistant"}
+              </div>
+            </div>
+            <Button
+              variant={delegationComplete ? "outline" : "default"}
+              className={
+                delegationComplete
+                  ? "text-amber-600 border-amber-300 mt-2"
+                  : "bg-amber-600 hover:bg-amber-700 text-white mt-2"
+              }
+              onClick={handleDelegationSetup}
+              disabled={isCreatingAccounts || isCreatingDelegation}
+            >
+              {isCreatingAccounts || isCreatingDelegation ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="mr-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
                   </motion.div>
-                  <motion.div variants={itemVariants}>
-                    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg text-amber-800">
-                          AI Delegation
-                        </CardTitle>
-                        <CardDescription className="text-amber-600">
-                          Enable AI-powered transactions
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-amber-500" />
-                          <div className="text-sm text-amber-700">
-                            {delegationComplete
-                              ? "AI delegation is active! Your AI assistant can now create tokens on your behalf."
-                              : "Delegate token creation capabilities to your AI assistant"}
-                          </div>
-                        </div>
-                        <Button
-                          variant={delegationComplete ? "outline" : "default"}
-                          className={
-                            delegationComplete
-                              ? "text-amber-600 border-amber-300 mt-2"
-                              : "bg-amber-600 hover:bg-amber-700 text-white mt-2"
-                          }
-                          onClick={handleDelegationSetup}
-                          disabled={isCreatingAccounts || isCreatingDelegation}
-                        >
-                          {isCreatingAccounts || isCreatingDelegation ? (
-                            <>
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{
-                                  duration: 1,
-                                  repeat: Infinity,
-                                  ease: "linear",
-                                }}
-                                className="mr-2"
-                              >
-                                <Sparkles className="h-4 w-4" />
-                              </motion.div>
-                              {isCreatingAccounts
-                                ? "Setting up accounts..."
-                                : "Creating delegation..."}
-                            </>
-                          ) : delegationComplete ? (
-                            "View Delegation Details"
-                          ) : (
-                            "Setup AI Delegation"
-                          )}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </TabsContent>
-              </Tabs>
-            </motion.div>
+                  {isCreatingAccounts ? "Setting up accounts..." : "Creating delegation..."}
+                </>
+              ) : delegationComplete ? (
+                "View Delegation Details"
+              ) : (
+                "Setup AI Delegation"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  </div>
+</motion.div>
 
             <ConnectWalletModal
               isOpen={isConnectWalletModalOpen}
