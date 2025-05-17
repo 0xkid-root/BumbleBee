@@ -45,29 +45,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TooltipProvider,
@@ -79,32 +62,38 @@ import { useToast } from "@/hooks/use-toast";
 import { useAccount, useSwitchChain } from "wagmi";
 import { isAddress } from "viem";
 
-// Types
-interface Subscription {
-  id: string;
-  name: string;
-  amount: string;
-  numericAmount: number;
-  frequency: string;
-  nextPayment: string;
-  category: string;
-  paymentMethod: string;
-  status: "active" | "paused" | "expiring" | "shared";
-  description?: string;
-  contractAddress?: string;
-  erc7715?: boolean;
-  tokenAddress?: string;
-  recipient?: string;
-  isAutoRenewing?: boolean;
-  color?: string;
-  createdAt?: string;
-  logo?: string;
-  lastPayment?: string;
-  totalSpent?: string;
-  totalPayments?: number;
-  remainingPayments?: number;
-  sharedWith?: string[];
-}
+// Import UI components
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+
+// Import modals
+import { AddSubscriptionModal } from "./modals/add-subscription-modal";
+import { EditSubscriptionModal } from "./modals/edit-subscription-modal";
+import { DeleteSubscriptionModal } from "./modals/delete-subscription-modal";
+import { ShareSubscriptionModal } from "./modals/share-subscription-modal";
+import { StatsSubscriptionModal } from "./modals/stats-subscription-modal";
+
+// Import types
+import { Subscription } from "./types";
+
+// Type definitions
+type FormValue = string | boolean | number;
+type FormField = keyof Subscription;
 
 // Animation variants
 const containerVariants = {
@@ -134,30 +123,8 @@ export default function SubscriptionManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [expandedSubscription, setExpandedSubscription] = useState<string | null>(
-    null
-  );
-  const [formState, setFormState] = useState<Subscription>({
-    id: "",
-    name: "",
-    amount: "",
-    numericAmount: 0,
-    frequency: "Monthly",
-    nextPayment: "",
-    category: "Entertainment",
-    paymentMethod: "MetaMask",
-    status: "active",
-    description: "",
-    contractAddress: "",
-    erc7715: false,
-    tokenAddress: "",
-    recipient: "",
-    isAutoRenewing: false,
-    color: "#6366F1",
-  });
-  const [currentSubscription, setCurrentSubscription] =
-    useState<Subscription | null>(null);
+  const [expandedSubscription, setExpandedSubscription] = useState<string | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -761,35 +728,31 @@ export default function SubscriptionManagement() {
     return subscriptions.filter((s) => s.status === status).length;
   };
 
-  const handleInputChange = (
-    field: keyof Subscription,
-    value: string | boolean | number
-  ) => {
+  const handleInputChange = (field: keyof Subscription, value: string | boolean | number) => {
+    if (!currentSubscription) return;
+
     if (field === "amount") {
       if (typeof value !== "string") return;
 
-      setFormState((prev) => {
-        const numericValue = parseFloat(value.replace(/[^0-9.]/g, ""));
-        return {
-          ...prev,
-          amount: value,
-          numericAmount: isNaN(numericValue) ? 0 : numericValue,
-        };
+      const numericValue = parseFloat(value.replace(/[^0-9.]/g, ""));
+      setCurrentSubscription({
+        ...currentSubscription,
+        amount: value,
+        numericAmount: numericValue,
       });
     } else {
-      setFormState((prev) => ({ ...prev, [field]: value }));
+      setCurrentSubscription({
+        ...currentSubscription,
+        [field]: value,
+      });
     }
   };
 
   const openAddModal = () => {
-    const today = new Date().toISOString().split("T")[0];
-    resetForm();
-    setFormState((prev) => ({ ...prev, nextPayment: today }));
     setIsAddModalOpen(true);
   };
 
   const openEditModal = (sub: Subscription) => {
-    setFormState({ ...sub });
     setCurrentSubscription(sub);
     setIsEditModalOpen(true);
   };
@@ -807,150 +770,6 @@ export default function SubscriptionManagement() {
   const openStatsModal = (sub: Subscription) => {
     setCurrentSubscription(sub);
     setIsStatsModalOpen(true);
-  };
-
-  const resetForm = () => {
-    const today = new Date().toISOString().split("T")[0];
-    setFormState({
-      id: "",
-      name: "",
-      amount: "",
-      numericAmount: 0,
-      frequency: "Monthly",
-      nextPayment: today,
-      category: "Entertainment",
-      paymentMethod: "MetaMask",
-      status: "active",
-      description: "",
-      contractAddress: "",
-      erc7715: false,
-      tokenAddress: "",
-      recipient: "",
-      isAutoRenewing: false,
-      color: "#6366F1",
-    });
-  };
-
-  const validateForm = (): boolean => {
-    if (!formState.name.trim()) {
-      toast({ title: "Error", description: "Name is required." });
-      return false;
-    }
-    if (!formState.amount || formState.numericAmount <= 0) {
-      toast({ title: "Error", description: "Valid amount is required." });
-      return false;
-    }
-    if (!formState.nextPayment) {
-      toast({ title: "Error", description: "Next payment date is required." });
-      return false;
-    }
-    if (formState.erc7715) {
-      if (!formState.contractAddress || !isAddress(formState.contractAddress)) {
-        toast({
-          title: "Error",
-          description: "Valid contract address is required for ERC-7715.",
-        });
-        return false;
-      }
-      if (!formState.tokenAddress || !isAddress(formState.tokenAddress)) {
-        toast({
-          title: "Error",
-          description: "Valid token address is required for ERC-7715.",
-        });
-        return false;
-      }
-      if (!formState.recipient || !isAddress(formState.recipient)) {
-        toast({
-          title: "Error",
-          description: "Valid recipient address is required for ERC-7715.",
-        });
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleAddSubscription = async () => {
-    if (!validateForm()) return;
-    setIsSubmitting(true);
-
-    // Simulate contract interaction
-    setTimeout(() => {
-      const newSub: Subscription = {
-        ...formState,
-        id: `sub_${subscriptions.length + 1}`,
-        createdAt: new Date().toISOString(),
-        lastPayment: new Date().toISOString(),
-        totalSpent: formState.amount,
-        totalPayments: 1,
-        logo: getLogoUrl(formState.name),
-        color: formState.color || generateRandomColor(),
-      };
-      setSubscriptions([...subscriptions, newSub]);
-      toast({ title: "Success", description: "Subscription added." });
-      setIsAddModalOpen(false);
-      resetForm();
-      setIsSubmitting(false);
-    }, 1500);
-  };
-
-  const handleEditSubscription = async () => {
-    if (!validateForm() || !currentSubscription) return;
-    setIsSubmitting(true);
-
-    // Simulate contract interaction
-    setTimeout(() => {
-      const updatedSubs = subscriptions.map((sub) =>
-        sub.id === currentSubscription.id
-          ? { ...formState, logo: getLogoUrl(formState.name) }
-          : sub
-      );
-      setSubscriptions(updatedSubs);
-      toast({ title: "Success", description: "Subscription updated." });
-      setIsEditModalOpen(false);
-      resetForm();
-      setCurrentSubscription(null);
-      setIsSubmitting(false);
-    }, 1500);
-  };
-
-  const handleDeleteSubscription = async () => {
-    if (!currentSubscription) return;
-    setIsSubmitting(true);
-
-    // Simulate contract interaction
-    setTimeout(() => {
-      setSubscriptions(
-        subscriptions.filter((sub) => sub.id !== currentSubscription.id)
-      );
-      toast({ title: "Success", description: "Subscription deleted." });
-      setIsDeleteModalOpen(false);
-      setCurrentSubscription(null);
-      setIsSubmitting(false);
-    }, 1500);
-  };
-
-  const handleShareSubscription = async (email: string) => {
-    if (!currentSubscription) return;
-    setIsSubmitting(true);
-
-    // Simulate sharing
-    setTimeout(() => {
-      const updatedSubs = subscriptions.map((sub) =>
-        sub.id === currentSubscription.id
-          ? {
-              ...sub,
-              sharedWith: [...(sub.sharedWith || []), email],
-              status: "shared" as "shared",
-            }
-          : sub
-      );
-      setSubscriptions(updatedSubs);
-      toast({ title: "Success", description: `Shared with ${email}.` });
-      setIsShareModalOpen(false);
-      setCurrentSubscription(null);
-      setIsSubmitting(false);
-    }, 1500);
   };
 
   const toggleCategoryFilter = (category: string) => {
@@ -1372,562 +1191,98 @@ export default function SubscriptionManagement() {
           })}
         </motion.div>
 
-        {/* Add Subscription Modal */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Subscription</DialogTitle>
-              <DialogDescription>
-                Enter the details for your new subscription.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Name</Label>
-                <Input
-                  value={formState.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  placeholder="e.g., Netflix"
-                />
-              </div>
-              <div>
-                <Label>Amount</Label>
-                <Input
-                  value={formState.amount}
-                  onChange={(e) => handleInputChange("amount", e.target.value)}
-                  placeholder="$9.99"
-                />
-              </div>
-              <div>
-                <Label>Frequency</Label>
-                <Select
-                  value={formState.frequency}
-                  onValueChange={(value) =>
-                    handleInputChange("frequency", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {frequencies.map((freq) => (
-                      <SelectItem key={freq} value={freq}>
-                        {freq}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Next Payment Date</Label>
-                <Input
-                  type="date"
-                  value={formState.nextPayment}
-                  onChange={(e) =>
-                    handleInputChange("nextPayment", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select
-                  value={formState.category}
-                  onValueChange={(value) =>
-                    handleInputChange("category", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Payment Method</Label>
-                <Select
-                  value={formState.paymentMethod}
-                  onValueChange={(value) =>
-                    handleInputChange("paymentMethod", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {method}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) =>
-                    handleInputChange("status", value as Subscription["status"])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="expiring">Expiring</SelectItem>
-                    <SelectItem value="shared">Shared</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Input
-                  value={formState.description || ""}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formState.erc7715}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("erc7715", checked)
-                  }
-                />
-                <Label>Enable ERC-7715 (Smart Subscription)</Label>
-              </div>
-              {formState.erc7715 && (
-                <>
-                  <div>
-                    <Label>Contract Address</Label>
-                    <Input
-                      value={formState.contractAddress || ""}
-                      onChange={(e) =>
-                        handleInputChange("contractAddress", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Token Address</Label>
-                    <Input
-                      value={formState.tokenAddress || ""}
-                      onChange={(e) =>
-                        handleInputChange("tokenAddress", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Recipient Address</Label>
-                    <Input
-                      value={formState.recipient || ""}
-                      onChange={(e) =>
-                        handleInputChange("recipient", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={formState.isAutoRenewing}
-                      onCheckedChange={(checked) =>
-                        handleInputChange("isAutoRenewing", checked)
-                      }
-                    />
-                    <Label>Auto-Renew</Label>
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsAddModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddSubscription}
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  "Add Subscription"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Modal Components */}
+        <AddSubscriptionModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={(subscription) => {
+            setSubscriptions([...subscriptions, subscription]);
+            setIsAddModalOpen(false);
+          }}
+          categories={categories}
+          frequencies={frequencies}
+          paymentMethods={paymentMethods}
+        />
 
-        {/* Edit Subscription Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Subscription</DialogTitle>
-              <DialogDescription>
-                Update the details for {currentSubscription?.name}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Name</Label>
-                <Input
-                  value={formState.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  placeholder="e.g., Netflix"
-                />
-              </div>
-              <div>
-                <Label>Amount</Label>
-                <Input
-                  value={formState.amount}
-                  onChange={(e) => handleInputChange("amount", e.target.value)}
-                  placeholder="$9.99"
-                />
-              </div>
-              <div>
-                <Label>Frequency</Label>
-                <Select
-                  value={formState.frequency}
-                  onValueChange={(value) =>
-                    handleInputChange("frequency", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {frequencies.map((freq) => (
-                      <SelectItem key={freq} value={freq}>
-                        {freq}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Next Payment Date</Label>
-                <Input
-                  type="date"
-                  value={formState.nextPayment}
-                  onChange={(e) =>
-                    handleInputChange("nextPayment", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select
-                  value={formState.category}
-                  onValueChange={(value) =>
-                    handleInputChange("category", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Payment Method</Label>
-                <Select
-                  value={formState.paymentMethod}
-                  onValueChange={(value) =>
-                    handleInputChange("paymentMethod", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {method}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) =>
-                    handleInputChange("status", value as Subscription["status"])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="expiring">Expiring</SelectItem>
-                    <SelectItem value="shared">Shared</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Input
-                  value={formState.description || ""}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formState.erc7715}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("erc7715", checked)
-                  }
-                />
-                <Label>Enable ERC-7715 (Smart Subscription)</Label>
-              </div>
-              {formState.erc7715 && (
-                <>
-                  <div>
-                    <Label>Contract Address</Label>
-                    <Input
-                      value={formState.contractAddress || ""}
-                      onChange={(e) =>
-                        handleInputChange("contractAddress", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Token Address</Label>
-                    <Input
-                      value={formState.tokenAddress || ""}
-                      onChange={(e) =>
-                        handleInputChange("tokenAddress", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Recipient Address</Label>
-                    <Input
-                      value={formState.recipient || ""}
-                      onChange={(e) =>
-                        handleInputChange("recipient", e.target.value)
-                      }
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={formState.isAutoRenewing}
-                      onCheckedChange={(checked) =>
-                        handleInputChange("isAutoRenewing", checked)
-                      }
-                    />
-                    <Label>Auto-Renew</Label>
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEditSubscription}
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Subscription"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <EditSubscriptionModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSubmit={(subscription) => {
+            setSubscriptions(
+              subscriptions.map((sub) =>
+                sub.id === subscription.id ? subscription : sub
+              )
+            );
+            setIsEditModalOpen(false);
+          }}
+          subscription={currentSubscription}
+          categories={categories}
+          frequencies={frequencies}
+          paymentMethods={paymentMethods}
+        />
 
-        {/* Delete Subscription Modal */}
-        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Subscription</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {currentSubscription?.name}? This
-                action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDeleteSubscription}
-                disabled={isSubmitting}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteSubscriptionModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={(subscription) => {
+            setSubscriptions(
+              subscriptions.filter((sub) => sub.id !== subscription.id)
+            );
+            setIsDeleteModalOpen(false);
+          }}
+          subscription={currentSubscription}
+        />
 
-        {/* Share Subscription Modal */}
-        <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Share Subscription</DialogTitle>
-              <DialogDescription>
-                Share {currentSubscription?.name} with others.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Email Address</Label>
-                <Input
-                  placeholder="Enter email address"
-                  onChange={(e) => handleInputChange("sharedWith", e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsShareModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  // Ensure we're passing a string to handleShareSubscription
-                  const emailToShare = 
-                    typeof formState.sharedWith === 'string' 
-                      ? formState.sharedWith 
-                      : "user@example.com";
-                  handleShareSubscription(emailToShare);
-                }
-                }
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sharing...
-                  </>
-                ) : (
-                  "Share"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ShareSubscriptionModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          onShare={(subscription, emails) => {
+            setSubscriptions(
+              subscriptions.map((sub) =>
+                sub.id === subscription.id
+                  ? {
+                      ...sub,
+                      sharedWith: [...(sub.sharedWith || []), ...emails],
+                      status: "shared" as "shared",
+                    }
+                  : sub
+              )
+            );
+            setIsShareModalOpen(false);
+          }}
+          subscription={currentSubscription}
+        />
 
-        {/* Stats Modal */}
-        <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Subscription Stats</DialogTitle>
-              <DialogDescription>
-                Statistics for {currentSubscription?.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Spent</span>
-                <span className="font-bold">
-                  {currentSubscription?.totalSpent || "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Payments</span>
-                <span className="font-bold">
-                  {currentSubscription?.totalPayments || 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">
-                  Average Payment
-                </span>
-                <span className="font-bold">
-                  $
-                  {currentSubscription?.totalPayments
-                    ? (
-                        parseFloat(
-                          currentSubscription.totalSpent?.replace("$", "") || "0"
-                        ) / currentSubscription.totalPayments
-                      ).toFixed(2)
-                    : "0.00"}
-                </span>
-              </div>
-              {currentSubscription?.remainingPayments && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">
-                    Remaining Payments
-                  </span>
-                  <span className="font-bold">
-                    {currentSubscription.remainingPayments}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Last Payment</span>
-                <span className="font-bold">
-                  {formatDate(currentSubscription?.lastPayment || "")}
-                </span>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsStatsModalOpen(false)}
-              >
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <StatsSubscriptionModal
+          isOpen={isStatsModalOpen}
+          onClose={() => setIsStatsModalOpen(false)}
+          stats={{
+            totalActive: subscriptions.filter((sub) => sub.status === "active").length,
+            totalPaused: subscriptions.filter((sub) => sub.status === "paused").length,
+            totalExpiring: subscriptions.filter((sub) => sub.status === "expiring").length,
+            totalShared: subscriptions.filter((sub) => sub.status === "shared").length,
+            totalMonthly: subscriptions
+              .filter((sub) => sub.status === "active")
+              .reduce((sum, sub) => sum + sub.numericAmount, 0)
+              .toFixed(2),
+            totalYearly: (
+              subscriptions
+                .filter((sub) => sub.status === "active")
+                .reduce((sum, sub) => sum + sub.numericAmount, 0) * 12
+            ).toFixed(2),
+            topCategory: Object.entries(
+              subscriptions.reduce((acc, sub) => {
+                acc[sub.category] = (acc[sub.category] || 0) + 1;
+                return acc;
+              }, {} as { [key: string]: number })
+            ).sort((a, b) => b[1] - a[1])[0]?.[0] || "None",
+            erc7715Count: subscriptions.filter((sub) => sub.erc7715).length,
+            categoryCounts: subscriptions.reduce((acc, sub) => {
+              acc[sub.category] = (acc[sub.category] || 0) + 1;
+              return acc;
+            }, {} as { [key: string]: number }),
+          }}
+        />
       </div>
     </TooltipProvider>
   );

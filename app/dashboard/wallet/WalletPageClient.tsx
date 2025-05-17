@@ -6,6 +6,7 @@ import { useAccount, useChainId } from "wagmi";
 import { useAuth } from "@/hooks/useAuth";
 import { useClipboard } from "@/lib/hooks/use-clipboard";
 import { toast } from "sonner";
+import {createMetaMaskSmartAccount} from "@lib/delegation/metaMaskSmartAccount";
 import {
   sendUserOperation,
   createSessionKey,
@@ -193,6 +194,46 @@ export default function WalletPageClient(): React.ReactElement {
 
   // Initialize bundler connection and monitor network
   useEffect(() => {
+    let isInitializing = false;
+    let timeoutId: NodeJS.Timeout;
+
+    const initializeConnection = async () => {
+      if (isInitializing || !isConnected || !address) return;
+      isInitializing = true;
+
+      try {
+        handleLoading(true, "Initializing connection...", null);
+        await connectBundler(address, chainId);
+        const entryPoint = await getEntryPointContract(chainId);
+        
+        if (!entryPoint) {
+          throw new Error("Unsupported network or entry point not found");
+        }
+
+        // Clear any existing errors
+        setWalletError(null);
+        setIsErrorDialogOpen(false);
+        handleLoading(false);
+        toast.success("Wallet connected successfully");
+      } catch (error: any) {
+        console.error("Connection initialization failed:", error);
+        const errorMessage = error.message || "Failed to initialize connection";
+        
+        setWalletError({
+          code: "INITIALIZATION_ERROR",
+          message: errorMessage,
+          timestamp: new Date(),
+          retryable: true,
+        });
+        setIsErrorDialogOpen(true);
+        handleLoading(false, "", errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        isInitializing = false;
+      }
+    };
+
+    // Handle disconnected state
     if (!isConnected || !address) {
       setWalletError({
         code: "WALLET_DISCONNECTED",
@@ -203,30 +244,18 @@ export default function WalletPageClient(): React.ReactElement {
       setIsErrorDialogOpen(true);
       return;
     }
+
+    // Initialize connection with debounce
+    timeoutId = setTimeout(initializeConnection, 500);
     
-    const initializeConnection = async () => {
-      try {
-        await connectBundler(address, chainId);
-        const entryPoint = await getEntryPointContract(chainId);
-        if (!entryPoint) throw new Error("Unsupported network");
-        toast.success("Wallet connected successfully");
-      } catch (error) {
-        console.error("Failed to connect to bundler:", error);
-        setWalletError({
-          code: "NETWORK_ERROR",
-          message: "Failed to connect to network. Please check your network settings.",
-          timestamp: new Date(),
-          retryable: true,
-        });
-        setIsErrorDialogOpen(true);
-        toast.error("Failed to connect to network");
-      }
+    // Animate cards after successful connection
+    const animationTimeout = setTimeout(() => setAnimateCards(true), 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(animationTimeout);
     };
-    
-    initializeConnection();
-    const timeout = setTimeout(() => setAnimateCards(true), 500);
-    return () => clearTimeout(timeout);
-  }, [isConnected, address, chainId]);
+  }, [isConnected, address, chainId, handleLoading]);
 
   // Create session key for delegation
   const createSessionKeyHandler = useCallback(async (): Promise<SessionKey> => {
@@ -301,7 +330,13 @@ export default function WalletPageClient(): React.ReactElement {
         caveats: [],
         delegatedTo: "BumbleBee AI Assistant",
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        sessionKey: { publicKey: params.sessionKey, privateKey: "mock-private-key" },
+        sessionKey: { 
+          id: `sk-${Math.random().toString(36).substring(2, 15)}`,
+          publicKey: params.sessionKey,
+          privateKey: "mock-private-key",
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        },
         passkey: params.passkey || null,
         address: mockDelegation.smartAccount.address,
         name: "AI Assistant Delegation",
@@ -440,10 +475,20 @@ export default function WalletPageClient(): React.ReactElement {
     [address]
   );
 
+  // Track connection attempt state
+  const isConnectingRef = useRef(false);
+const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
   // Connect wallet function with improved error handling and network switching
   const connectWallet = useCallback(async () => {
-    if (isLoading) return;
+    if (isLoading || isConnectingRef.current) return;
+    isConnectingRef.current = true;
     handleLoading(true, "Connecting to MetaMask...", null);
+
+    // Clear any existing timeout
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+    }
     try {
       // Check if ethereum object exists
       if (typeof window === 'undefined' || !window.ethereum) {
@@ -533,6 +578,7 @@ export default function WalletPageClient(): React.ReactElement {
       
       await connectBundler(currentAccounts[0] as `0x${string}`, parseInt(currentChainId, 16));
       const entryPoint = await getEntryPointContract(parseInt(currentChainId, 16));
+      console.log("entry point ::-",entryPoint)
       if (!entryPoint) throw new Error("Unsupported network");
       toast.success("Connected to wallet successfully");
       
@@ -555,6 +601,10 @@ export default function WalletPageClient(): React.ReactElement {
       throw error;
     } finally {
       handleLoading(false);
+      // Reset connection state after a delay to prevent rapid retries
+      connectionTimeoutRef.current = setTimeout(() => {
+        isConnectingRef.current = false;
+      }, 2000); // 2 second cooldown
     }
   }, [isLoading, handleLoading]);
 
@@ -803,7 +853,16 @@ export default function WalletPageClient(): React.ReactElement {
                 transition={{ delay: 0.3 }}
               >
                 <Button
-                  onClick={createDelegatorAccount}
+                  onClick={async () => {
+                    if (!address) return;
+                    await createDelegatorAccount({
+                      delegator: address as `0x${string}`,
+                      delegate: "0x2FcB88EC2359fA635566E66415D31dD381CF5585",
+                      sessionKey: sessionKey?.publicKey || "",
+                      passkey: passkey,
+                      caveats: []
+                    });
+                  }}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
                   disabled={isLoading}
                 >
@@ -815,7 +874,7 @@ export default function WalletPageClient(): React.ReactElement {
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4 mr-2" />
-                      Create Delegator Account
+                      Create Delegator hiii Account
                     </>
                   )}
                 </Button>

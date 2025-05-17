@@ -58,8 +58,6 @@ const NAV_ITEMS: NavItem[] = [
   { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "Settings", href: "/dashboard/settings", icon: <Settings className="h-5 w-5 text-gray-500" aria-hidden="true" /> },
-  { title: "Help & Support", href: "/dashboard/help", icon: <HelpCircle className="h-5 w-5 text-teal-500" aria-hidden="true" /> },
 ]
 
 // Mock useAuth hook (replace with real hook if available)
@@ -586,7 +584,10 @@ const SidebarContent = React.memo(
 
     const handleDisconnect = useCallback(() => {
       disconnect()
-      router.push("/login")
+      router.push("/")
+      toast.success("Successfully logged out", {
+        description: "You have been redirected to the home page"
+      })
     }, [disconnect, router])
 
     return (
