@@ -3,6 +3,13 @@ import { sepolia, mainnet } from 'viem/chains';
 
 // Import types only to avoid runtime errors
 import type { PublicClient, WalletClient } from 'viem';
+
+// Network enum for chain selection
+export enum Network {
+  Mainnet = 'mainnet',
+  Sepolia = 'sepolia'
+}
+
 // Mock OpenAI client for development purposes
 interface OpenAIClient {
   createAgent: (config: any) => Promise<{id: string; address: Address}>;
@@ -104,10 +111,6 @@ const logger = typeof window === 'undefined' ? winston.createLogger({
 const eventEmitter = new EventEmitter();
 
 // Enums
-export enum Network {
-  Sepolia = 'sepolia',
-  Mainnet = 'mainnet',
-}
 
 export enum PermissionType {
   NativeTokenStream = 'native-token-stream',
@@ -174,8 +177,11 @@ export interface TabState {
 }
 
 export interface BumblebeeSdkConfig {
-  address: Address;
+  address: `0x${string}`;
   network: Network;
+  gaiaNetApiKey?: string;
+  delegationContract?: string;
+  rpcUrl?: string;
 }
 
 // Custom Errors
@@ -831,33 +837,30 @@ export class BumblebeeSDK {
     return sdk
   }
 
-  private client: PublicClient;
-  private contracts: Map<string, Contract> = new Map();
-  private wallet: any; // Add wallet property to fix TypeScript error
-  private rpcUrl: string;
+  private readonly client: PublicClient;
+  private readonly contracts: Map<string, Contract> = new Map();
+  private wallet: WalletClient | null = null;
+  private readonly rpcUrl: string;
 
-  private constructor(private config: BumblebeeSdkConfig) {
-    this.rpcUrl = config.network === Network.Mainnet 
-      ? (env.MAINNET_RPC_URL || env.RPC_URL)
-      : env.RPC_URL
+  constructor(private config: BumblebeeSdkConfig) {
+    this.rpcUrl = config.rpcUrl || (
+      config.network === Network.Mainnet 
+        ? (env.MAINNET_RPC_URL || env.RPC_URL)
+        : env.RPC_URL
+    );
+    
+    this.client = createPublicClient({
+      chain: config.network === Network.Mainnet ? mainnet : sepolia,
+      transport: http(this.rpcUrl)
+    });
   }
-  private client: PublicClient
-  private contracts: Map<string, Contract> = new Map()
-  private wallet: any // Add wallet property to fix TypeScript error
 
-  
-  // Add init method to fix TypeScript error in subscription management component
+  // Remove duplicate init methods
   async init(): Promise<void> {
     // Initialize SDK components
     this.wallet = {
       getClient: () => ({ /* mock wallet client */ })
-    };
-  }
-
-  // Initialize SDK components
-  async init(): Promise<void> {
-    // Any async initialization can go here
-    return Promise.resolve();
+    } as WalletClient;
   }
   
   // Add getSubscription method to fix TypeScript error in subscription management component

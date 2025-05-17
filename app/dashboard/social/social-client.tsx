@@ -352,7 +352,7 @@ export default function SocialPayments() {
       >
         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">{tab.name} Details</h3>
+            <h3 className="text-md font-medium">{tab.name} Details</h3>
             <Button
               variant="ghost"
               size="sm"
@@ -387,7 +387,7 @@ export default function SocialPayments() {
         transition={{ duration: 0.5 }}
       >
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 text-transparent bg-clip-text">
             Social Payments
           </h1>
           <p className="text-muted-foreground">
@@ -397,7 +397,7 @@ export default function SocialPayments() {
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Button
             onClick={() => setIsCreateTabModalOpen(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
           >
             <PlusCircle className="mr-2 h-4 w-4" />
             Create Tab
@@ -464,12 +464,6 @@ export default function SocialPayments() {
           {/* Tabs Panel */}
           <TabsContent value="tabs">
             <Card className="border-none shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 rounded-t-lg">
-                <CardTitle className="flex items-center">
-                  <Users className="mr-2 h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                  My Tabs
-                </CardTitle>
-              </CardHeader>
               <CardContent className="pt-6">
                 {isDataLoading ? (
                   <div className="space-y-4">
@@ -528,7 +522,7 @@ export default function SocialPayments() {
                   variant="outline"
                   onClick={() => setIsAddMemberModalOpen(true)}
                   disabled={!selectedTabId}
-                  className="border-indigo-200 dark:border-indigo-800/30"
+                  className="border-amber-200 dark:border-amber-400/30"
                 >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add Member
@@ -537,7 +531,7 @@ export default function SocialPayments() {
                   variant="outline"
                   onClick={() => setIsPaymentRequestModalOpen(true)}
                   disabled={!selectedTabId}
-                  className="border-indigo-200 dark:border-indigo-800/30"
+                  className="border-amber-200 dark:border-amber-400/30"
                 >
                   <Wallet className="mr-2 h-4 w-4" />
                   Request Payment
@@ -550,9 +544,9 @@ export default function SocialPayments() {
           <TabsContent value="expenses">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="border-none shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 rounded-t-lg">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-800 rounded-t-lg">
                   <CardTitle className="flex items-center">
-                    <CreditCard className="mr-2 h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <CreditCard className="mr-2 h-5 w-5 text-amber-600 dark:text-amber-400" />
                     Add New Expense
                   </CardTitle>
                 </CardHeader>
@@ -564,7 +558,7 @@ export default function SocialPayments() {
                         onValueChange={setSelectedTabId}
                         value={selectedTabId || ""}
                       >
-                        <SelectTrigger className="border-indigo-200 dark:border-indigo-800/30">
+                        <SelectTrigger className="border-amber-200 dark:border-amber-800/30">
                           <SelectValue placeholder="Select a tab" />
                         </SelectTrigger>
                         <SelectContent>
@@ -583,7 +577,7 @@ export default function SocialPayments() {
                         value={expenseAmount}
                         onChange={(e) => setExpenseAmount(e.target.value)}
                         placeholder="0.00"
-                        className="border-indigo-200 dark:border-indigo-800/30"
+                        className="border-amber-200 dark:border-amber-500/30"
                       />
                     </div>
                     <div>
@@ -605,7 +599,7 @@ export default function SocialPayments() {
                       !expenseDescription ||
                       loading
                     }
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
                   >
                     {loading ? (
                       <>
@@ -625,7 +619,7 @@ export default function SocialPayments() {
               <Card className="border-none shadow-lg">
                 <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 rounded-t-lg">
                   <CardTitle className="flex items-center">
-                    <CreditCard className="mr-2 h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <CreditCard className="mr-2 h-5 w-5 text-amber-600 dark:text-amber-400" />
                     Recent Expenses
                   </CardTitle>
                 </CardHeader>
@@ -768,7 +762,7 @@ export default function SocialPayments() {
                       !streamDuration ||
                       loading
                     }
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                    className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-indigo-700 hover:to-purple-700"
                   >
                     {loading ? (
                       <>
@@ -944,7 +938,7 @@ export default function SocialPayments() {
                     onValueChange={setSelectedTabId}
                     value={selectedTabId || ""}
                   >
-                    <SelectTrigger className="border-indigo-200 dark:border-indigo-800/30">
+                    <SelectTrigger className="border-amber-200 dark:border-amber-500/30">
                       <SelectValue placeholder="Select a tab" />
                     </SelectTrigger>
                     <SelectContent>
@@ -976,7 +970,7 @@ export default function SocialPayments() {
                 <Button
                   onClick={handleAddMember}
                   disabled={loading || !selectedTabId || !memberAddress}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                  className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-indigo-700 hover:to-purple-700"
                 >
                   {loading ? (
                     <>

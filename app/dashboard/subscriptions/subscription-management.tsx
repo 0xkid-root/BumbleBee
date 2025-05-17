@@ -991,7 +991,7 @@ export default function SubscriptionManagement() {
             </Button>
             <Button
               onClick={openAddModal}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Subscription
@@ -1560,7 +1560,7 @@ export default function SubscriptionManagement() {
               <Button
                 onClick={handleAddSubscription}
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
               >
                 {isSubmitting ? (
                   <>
