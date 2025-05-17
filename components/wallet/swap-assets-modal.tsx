@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Slider } from "@/components/ui/slider"
 
-type SwapAssetsModalProps = {
+export type SwapAssetsModalProps = {
   isOpen: boolean
   onClose: () => void
   fromAsset: Asset | null
@@ -118,19 +118,16 @@ export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalP
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       // Add transaction to store
-      const txId = addTransaction({
+      // Create a transaction object
+      await addTransaction({
         type: "swap",
         status: "pending",
-        hash: "0x" + Math.random().toString(16).slice(2),
         from: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t", // User's address
         to: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t", // Same address for swaps
-        amount: fromAmount,
-        asset: fromAsset.symbol,
-        fee: (0.002).toString(),
-        fromAsset: fromAsset.symbol,
-        toAsset: toAsset.symbol,
-        fromAmount: fromAmount,
-        toAmount: toAmount,
+        amount: parseFloat(fromAmount),
+        assetSymbol: fromAsset.symbol,
+        value: parseFloat(fromAmount) * fromAsset.price,
+        fee: 0.002,
       })
 
       toast({
@@ -139,18 +136,18 @@ export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalP
       })
 
       // Simulate transaction confirmation after some time
-      setTimeout(() => {
+      setTimeout(async () => {
         const success = Math.random() > 0.2 // 80% success rate for demo
 
+        // In a real app, we would update the transaction status in the store
+        // For now, we'll just show a toast
         if (success) {
-          useTransactionStore.getState().updateTransactionStatus(txId, "completed", 12345678)
           toast({
             title: "Swap completed",
             description: `Successfully swapped ${fromAmount} ${fromAsset.symbol} to ${toAmount} ${toAsset.symbol}`,
             variant: "default",
           })
         } else {
-          useTransactionStore.getState().updateTransactionStatus(txId, "failed")
           toast({
             title: "Swap failed",
             description: "Please try again later",

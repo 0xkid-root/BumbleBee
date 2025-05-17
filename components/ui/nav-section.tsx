@@ -16,9 +16,9 @@ export function NavSection({ title, items, isCollapsed }: NavSectionProps) {
         <h3 className="px-2 text-xs font-medium text-muted-foreground">
           {title}
         </h3>
+      )}
       {items.map((item) => (
         <NavItemComponent key={item.href} item={item} isCollapsed={isCollapsed} />
-      ))}
       ))}
     </div>
   )

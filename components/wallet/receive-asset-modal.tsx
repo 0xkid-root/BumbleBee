@@ -16,7 +16,7 @@ import Image from "next/image"
 import { useClipboard } from "@/lib/hooks/use-clipboard"
 import { QRCodeSVG } from "qrcode.react"
 
-type ReceiveAssetModalProps = {
+export type ReceiveAssetModalProps = {
   isOpen: boolean
   onClose: () => void
   asset: Asset | null
@@ -44,7 +44,7 @@ export function ReceiveAssetModal({ isOpen, onClose, asset, walletAddress }: Rec
     if (!ctx) return
 
     // Create an image from the SVG
-    const img = new Image()
+    const img = document.createElement('img')
     const svgData = new XMLSerializer().serializeToString(svg)
     const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" })
     const url = URL.createObjectURL(svgBlob)

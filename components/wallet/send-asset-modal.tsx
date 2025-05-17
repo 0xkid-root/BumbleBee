@@ -18,7 +18,7 @@ import { Loader2, AlertCircle } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
 
-type SendAssetModalProps = {
+export type SendAssetModalProps = {
   isOpen: boolean
   onClose: () => void
   asset: Asset | null
@@ -60,15 +60,16 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       // Add transaction to store
-      const txId = addTransaction({
+      // Create a transaction object
+      await addTransaction({
         type: "send",
         status: "pending",
-        hash: "0x" + Math.random().toString(16).slice(2),
         from: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t", // User's address
         to: recipient,
-        amount,
-        asset: asset.symbol,
-        fee: (0.001).toString(),
+        amount: parseFloat(amount),
+        assetSymbol: asset.symbol,
+        value: parseFloat(amount) * asset.price,
+        fee: 0.001,
       })
 
       toast({
@@ -77,18 +78,18 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
       })
 
       // Simulate transaction confirmation after some time
-      setTimeout(() => {
+      setTimeout(async () => {
         const success = Math.random() > 0.2 // 80% success rate for demo
 
+        // In a real app, we would update the transaction status in the store
+        // For now, we'll just show a toast
         if (success) {
-          useTransactionStore.getState().updateTransactionStatus(txId, "completed", 12345678)
           toast({
             title: "Transaction confirmed",
             description: `Successfully sent ${amount} ${asset.symbol}`,
             variant: "default",
           })
         } else {
-          useTransactionStore.getState().updateTransactionStatus(txId, "failed")
           toast({
             title: "Transaction failed",
             description: "Please try again later",

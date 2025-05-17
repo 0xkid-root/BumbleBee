@@ -860,7 +860,7 @@ export class BumblebeeSDK {
     // Initialize SDK components
     this.wallet = {
       getClient: () => ({ /* mock wallet client */ })
-    } as WalletClient;
+    } as unknown as WalletClient;
   }
   
   // Add getSubscription method to fix TypeScript error in subscription management component

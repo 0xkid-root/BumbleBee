@@ -1,24 +1,6 @@
-import { DelegationAccount } from '@/lib/types';
+import { DelegationAccount } from '@/components/wallet/delegation-types';
 
-export interface SendAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account: DelegationAccount | null;
-}
+// These interfaces are now defined in their respective component files
+// and exported from index.ts
 
-export interface ReceiveAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account: DelegationAccount | null;
-}
-
-export interface SwapAssetsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account: DelegationAccount | null;
-}
-
-export interface SectionTitleProps {
-  title: string;
-  subtitle: string;
-}
+// SectionTitle is now defined in index.ts with children prop

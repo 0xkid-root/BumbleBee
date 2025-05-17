@@ -87,23 +87,10 @@ export const AccountDetailsModal: React.FC<AccountDetailsModalProps> = ({
   );
 };
 
-export interface SendAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account?: DelegationAccount;
-}
-
-export interface ReceiveAssetModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account?: DelegationAccount;
-}
-
-export interface SwapAssetsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  account?: DelegationAccount;
-}
+// These interfaces are defined in their respective component files
+export type { SendAssetModalProps } from './send-asset-modal';
+export type { ReceiveAssetModalProps } from './receive-asset-modal';
+export type { SwapAssetsModalProps } from './swap-assets-modal';
 
 export interface SectionTitleProps {
   children: React.ReactNode;
