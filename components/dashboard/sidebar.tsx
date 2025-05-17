@@ -614,27 +614,7 @@ const SidebarContent = React.memo(
           </Link>
           
           <div className="flex items-center gap-2">
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.8 }} 
-                  animate={{ opacity: 1, scale: 1 }} 
-                  exit={{ opacity: 0, scale: 0.8 }} 
-                  className="flex items-center gap-1"
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full hover:bg-primary/10"
-                    onClick={toggleDarkMode}
-                    aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-                    aria-pressed={isDarkMode}
-                  >
-                    <SunMoon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            
             <Button
               variant="ghost"
               size="icon"

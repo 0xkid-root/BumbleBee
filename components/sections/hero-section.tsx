@@ -289,6 +289,12 @@ export default function HeroSection() {
     return chains[id] || `Chain ID: ${id}`
   }
 
+  useEffect(() => {
+    if (isConnected && !showRegistration) {
+      router.push("/dashboard");
+    }
+  }, [isConnected, showRegistration, router]);
+
   return (
     <section id="hero" className="section-padding relative overflow-hidden pt-8">
       {/* Absolute positioned background */}
