@@ -7,9 +7,10 @@ export const metadata = {
   description: "Manage your recurring payments and subscriptions with ERC-7715 support",
 }
 
+
 export default function SubscriptionsPage() {
   return (
-    <Suspense fallback={<SubscriptionsSkeleton />}>
+    <Suspense fallback={<SubscriptionsSkeleton />}>   
       <div className="container mx-auto py-6">
         <SubscriptionManagement />
       </div>
@@ -19,7 +20,9 @@ export default function SubscriptionsPage() {
 
 function SubscriptionsSkeleton() {
   return (
+    
     <div className="flex-1 space-y-8 p-8 pt-6">
+    
       <div className="space-y-2">
         <Skeleton className="h-8 w-[250px]" />
         <Skeleton className="h-4 w-[300px]" />

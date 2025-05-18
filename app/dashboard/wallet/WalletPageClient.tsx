@@ -59,6 +59,9 @@ import {
   Shield,
   ArrowUpDown,
   Check,
+  Info,
+  CheckCircle,
+  Smartphone,
 } from "lucide-react";
 
 // Types
@@ -69,6 +72,8 @@ import {
   Caveat,
 } from "@/lib/bumblebee-sdk";
 import { CaveatType, DelegationAccount as ComponentDelegationAccount } from "@/components/wallet/delegation-types";
+import { Switch } from "@radix-ui/react-switch";
+import { Label } from "@radix-ui/react-label";
 
 // Define types with proper null handling
 interface SmartAccount {
@@ -175,6 +180,7 @@ export default function WalletPageClient(): React.ReactElement {
   const [sessionKey, setSessionKey] = useState<SessionKey | null>(null);
   const [passkey, setPasskey] = useState<PasskeyCredential | null>(null);
   const [isPasskeyRegistered, setIsPasskeyRegistered] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ModalState>("none");
   const [delegationLifecycle, setDelegationLifecycle] = useState({
     created: false,
@@ -301,7 +307,12 @@ export default function WalletPageClient(): React.ReactElement {
         caveats: [],
         delegatedTo: "BumbleBee AI Assistant",
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        sessionKey: { publicKey: params.sessionKey, privateKey: "mock-private-key" },
+        sessionKey: { 
+          id: `sk-${Math.random().toString(36).substring(2, 9)}`,
+          publicKey: params.sessionKey, 
+          privateKey: "mock-private-key",
+          createdAt: new Date()
+        },
         passkey: params.passkey || null,
         address: mockDelegation.smartAccount.address,
         name: "AI Assistant Delegation",
@@ -803,10 +814,20 @@ export default function WalletPageClient(): React.ReactElement {
                 transition={{ delay: 0.3 }}
               >
                 <Button
-                  onClick={createDelegatorAccount}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
-                  disabled={isLoading}
-                >
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!address || !sessionKey) return;
+                  createDelegatorAccount({
+                    delegator: address,
+                    delegate: `0x${Math.random().toString(16).substring(2, 10)}` as `0x${string}`,
+                    sessionKey: sessionKey.publicKey,
+                    passkey: passkey,
+                    caveats: []
+                  });
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                disabled={isLoading}
+              >
                   {isLoading ? (
                     <>
                       <Loader2 className="animate-spin h-4 w-4 mr-2" />
@@ -1048,17 +1069,7 @@ export default function WalletPageClient(): React.ReactElement {
   };
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 relative bg-gradient-to-b from-blue-50 to-white min-h-screen">
-      {/* Honeycomb Background Pattern */}
-      <div className="absolute inset-0 z-0 opacity-10">
-        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-          <pattern id="honeycomb" width="56" height="100" patternUnits="userSpaceOnUse">
-            <path d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100" stroke="#3b82f6" fill="none" />
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#honeycomb)" />
-        </svg>
-      </div>
-      
+    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 relative bg-gradient-to-b from-blue-50 to-white min-h-screen">  
       {/* Global Loading Overlay */}
       <AnimatePresence>
         {isLoading && (
@@ -1150,57 +1161,116 @@ export default function WalletPageClient(): React.ReactElement {
         
         {/* Passkey Registration Modal */}
         <Dialog open={activeModal === "passkey"} onOpenChange={(open) => setActiveModal(open ? "passkey" : "none")}>
-          <DialogContent className="sm:max-w-md rounded-xl bg-gradient-to-b from-gray-900 to-black border-white/10">
-            <DialogHeader>
-              <DialogTitle className="text-white">Register Passkey</DialogTitle>
-              <DialogDescription className="text-gray-300">
-                Register a passkey for enhanced security on your delegation account
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-4 py-4">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-sm text-blue-300">
-                <p className="mb-2">
-                  <strong>What is a passkey?</strong>
-                </p>
-                <p className="mb-2">
-                  A passkey is a secure hardware-based authentication method that uses biometric data or device credentials to verify your identity.
-                </p>
-                <p>
-                  Registering a passkey adds an additional layer of security to your delegation account.
-                </p>
-              </div>
-              <Button
-                onClick={registerPasskey}
-                disabled={isLoading || isPasskeyRegistered}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Registering...
-                  </>
-                ) : isPasskeyRegistered ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Passkey Registered
-                  </>
-                ) : (
-                  <>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Register Passkey
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setActiveModal("none")}
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+  <DialogContent className="sm:max-w-md rounded-lg border border-gray-200 shadow-lg">
+    <DialogHeader className="space-y-1 pb-2">
+      <DialogTitle className="text-lg font-semibold">Register Passkey</DialogTitle>
+      <DialogDescription className="text-sm text-gray-500">
+        Add a passkey for enhanced account security
+      </DialogDescription>
+    </DialogHeader>
+    
+    <div className="flex flex-col gap-3 py-2">
+      {/* Info Card */}
+      <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm">
+        <div className="flex items-start space-x-2">
+          <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-blue-700 mb-1">What is a passkey?</p>
+            <p className="text-blue-600 text-xs leading-relaxed mb-1">
+              A passkey is a secure hardware-based authentication method that uses biometric data or device credentials to verify your identity.
+            </p>
+            <p className="text-blue-600 text-xs leading-relaxed">
+              This adds an additional layer of security to your delegation account.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Status Indicator */}
+      {isPasskeyRegistered && (
+        <div className="flex items-center px-3 py-2 bg-green-50 border border-green-100 rounded-md">
+          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+          <span className="text-xs text-green-700">Passkey successfully registered</span>
+        </div>
+      )}
+      
+      {/* Error Indicator - Only shown if there's an error */}
+      {passkeyError && (
+        <div className="flex items-center px-3 py-2 bg-red-50 border border-red-100 rounded-md">
+          <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
+          <span className="text-xs text-red-700">{passkeyError}</span>
+        </div>
+      )}
+    </div>
+    
+    <div className="flex flex-col space-y-2 pt-2">
+      {/* Register Button */}
+      <Button
+        onClick={registerPasskey}
+        disabled={isLoading || isPasskeyRegistered}
+        className={`h-9 ${
+          isPasskeyRegistered 
+            ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+            : "bg-blue-600 hover:bg-blue-700 text-white"
+        }`}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="animate-spin h-3 w-3 mr-2" />
+            <span className="text-sm">Registering...</span>
+          </>
+        ) : isPasskeyRegistered ? (
+          <>
+            <Check className="h-3 w-3 mr-2" />
+            <span className="text-sm">Passkey Registered</span>
+          </>
+        ) : (
+          <>
+            <Shield className="h-3 w-3 mr-2" />
+            <span className="text-sm">Register Passkey</span>
+          </>
+        )}
+      </Button>
+      
+      {/* Device Selection (Optional) */}
+      {!isPasskeyRegistered && !isLoading && (
+        <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+          <div className="flex items-center">
+            <Smartphone className="h-3 w-3 text-gray-500 mr-2" />
+            <span className="text-xs text-gray-700">Current device</span>
+          </div>
+          <ChevronRight className="h-3 w-3 text-gray-400" />
+        </div>
+      )}
+      
+      {/* Cancel Button */}
+      <Button
+        variant="outline"
+        onClick={() => setActiveModal("none")}
+        className="h-9 border-gray-200 text-gray-700 hover:bg-gray-50 text-sm"
+      >
+        Cancel
+      </Button>
+    </div>
+    
+    {/* Optional - Advanced Section */}
+    <div className="mt-2 pt-2 border-t border-gray-100">
+      <details className="group">
+        <summary className="flex items-center text-xs text-gray-500 cursor-pointer">
+          <ChevronRight className="h-3 w-3 mr-1 transition-transform group-open:rotate-90" />
+          Advanced options
+        </summary>
+        <div className="mt-2 text-xs text-gray-600 space-y-2">
+          <p>Passkeys can be used across multiple devices within your account ecosystem.</p>
+          <div className="flex items-center space-x-2">
+            <Switch id="sync-passkey" className="scale-75" />
+            <Label htmlFor="sync-passkey" className="text-xs">Sync across devices</Label>
+          </div>
+        </div>
+      </details>
+    </div>
+  </DialogContent>
+</Dialog>
       </motion.div>
     </div>
   );
