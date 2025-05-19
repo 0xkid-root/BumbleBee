@@ -1,5 +1,4 @@
 import { Suspense } from "react"
-import WalletPageClient from "./WalletPageClient"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export const metadata = {
@@ -10,7 +9,15 @@ export const metadata = {
 export default function WalletPage() {
   return (
     <Suspense fallback={<WalletSkeleton />}>
-      <WalletPageClient />
+       {/* Honeycomb Background Pattern */}
+       <div className="absolute inset-0 z-0 opacity-10">
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+          <pattern id="honeycomb" width="56" height="100" patternUnits="userSpaceOnUse">
+            <path d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100" stroke="#3b82f6" fill="none" />
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#honeycomb)" />
+        </svg>
+      </div>
     </Suspense>
   )
 }

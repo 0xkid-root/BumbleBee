@@ -1,3 +1,10 @@
+export interface StreamConfig {
+  expiry: number;
+  amountPerSecond: string;
+  maxAmount: string;
+  startTime: number;
+}
+
 export interface Subscription {
   id: string;
   name: string;
@@ -22,4 +29,7 @@ export interface Subscription {
   totalPayments?: number;
   remainingPayments?: number;
   sharedWith?: string[];
+  permissionsContext?: any;
+  delegationManager?: string;
+  streamConfig?: StreamConfig;
 }

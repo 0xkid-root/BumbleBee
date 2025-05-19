@@ -8,7 +8,6 @@ declare module '@/lib/delegation/gatorClient' {
     publicKey: string;
     privateKey: string;
     createdAt: Date;
-    expiresAt?: Date;
   }
 
   export interface PasskeyCredential {
@@ -22,7 +21,6 @@ declare module '@/lib/delegation/gatorClient' {
     type: string;
     value: any;
     description: string;
-    params: Record<string, any>;
   }
 
   export interface Caveat {
