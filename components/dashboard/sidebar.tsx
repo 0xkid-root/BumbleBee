@@ -1,6 +1,5 @@
 "use client"
-
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react"
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense, ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -33,34 +32,50 @@ import {
 } from "lucide-react"
 import { debounce } from "lodash"
 
-// Import types from sidebar-types.ts
-import type { NavItem, AuthHook, SidebarContextType, MobileSidebarProps, SearchResultsProps } from "./sidebar-types"
-
-// Define error boundary props and state types
-interface ErrorBoundaryProps {
-  children: React.ReactNode
-  fallbackComponent?: React.ComponentType<{ error: Error; resetError: () => void }>
+// Types
+interface NavItem {
+  title: string
+  href: string
+  icon: React.ReactNode
+  badge?: string
+  badgeColor?: string
+  isExternal?: boolean
+  isDisabled?: boolean
+  onClick?: () => void
 }
 
-interface ErrorBoundaryState {
-  hasError: boolean
-  error: Error | null
+interface AuthHook {
+  user: { name: string }
+  address: string
+  disconnect: () => void
 }
 
-// Navigation Configuration with colorful icons
+interface SidebarContextType {
+  isCollapsed: boolean
+  toggleSidebar: () => void
+  isDarkMode: boolean
+  toggleDarkMode: () => void
+  notificationCount: number
+}
+
+// Lazy-loaded components
+const LazyMobileSidebar = lazy(() => import("./sidebar-components/mobile-sidebar").then((mod) => ({ default: mod.MobileSidebar })))
+const LazySearchResults = lazy(() => import("./sidebar-components/search-results").then((mod) => ({ default: mod.SearchResults })))
+
+// Navigation Configuration
 const NAV_ITEMS: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5 text-blue-500" aria-hidden="true" /> },
-  { title: "Smart Wallet", href: "/dashboard/wallet", icon: <Wallet className="h-5 w-5 text-purple-500" aria-hidden="true" /> },
-  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5 text-orange-500" aria-hidden="true" /> },
-  { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5 text-pink-500" aria-hidden="true" /> },
-  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
-  { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" aria-hidden="true" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5 text-blue-500" /> },
+  { title: "Smart Wallet", href: "/dashboard/wallet", icon: <Wallet className="h-5 w-5 text-purple-500" /> },
+  { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5 text-orange-500" /> },
+  { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5 text-pink-500" /> },
+  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
 ]
 
-// Mock useAuth hook (replace with real hook if available)
+// Mock useAuth hook
 let useAuth: () => AuthHook;
 try {
   useAuth = require('@/hooks/useAuth').useAuth;
@@ -70,236 +85,233 @@ try {
     address: "0x1234...5678",
     disconnect: () => {
       console.log("Disconnected");
-      toast.success("Wallet disconnected", {
-        description: "You have been successfully logged out"
-      });
+      toast.success("Wallet disconnected", { description: "You have been successfully logged out" });
     },
   });
 }
 
-// Validates if data is an array of NavItems
-const isValidNavItems = (data: unknown): data is NavItem[] => {
-  if (!Array.isArray(data)) return false;
-  return data.every((item) => 
-    typeof item.title === "string" && 
-    typeof item.href === "string" && 
-    (item.icon !== undefined)
-  );
+// Error Boundary
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Sidebar Error:', error, errorInfo);
+    toast.error("An error occurred in the sidebar", { description: "Please try refreshing the page if the problem persists." });
+  }
+
+  resetError = () => {
+    this.setState({ hasError: false, error: null });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-center" role="alert">
+          <p className="text-sm text-destructive font-medium">Failed to load component</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-3">{this.state.error?.message || "An unexpected error occurred."}</p>
+          <Button variant="outline" size="sm" onClick={this.resetError} aria-label="Retry loading component">
+            Retry
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
-// Create Sidebar Context
+// Sidebar Context
 const SidebarContext = React.createContext<SidebarContextType & { notificationCount: number }>({
   isCollapsed: false,
   toggleSidebar: () => {},
   isDarkMode: false,
   toggleDarkMode: () => {},
   notificationCount: 0,
-})
+});
 
-export const useSidebar = () => React.useContext(SidebarContext)
+export const useSidebar = () => React.useContext(SidebarContext);
 
 export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const [notificationCount] = useState(3)
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [notificationCount] = useState(3);
 
-  // Initialize sidebar state from localStorage or default values
+  // Initialize preferences from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
+    
     const initializePreferences = () => {
       try {
-        // Load sidebar collapsed state
-        const savedSidebarState = localStorage.getItem("sidebarCollapsed")
+        // Load sidebar state
+        const savedSidebarState = localStorage.getItem("sidebarCollapsed");
         if (savedSidebarState !== null) {
-          const parsedState = JSON.parse(savedSidebarState)
+          const parsedState = JSON.parse(savedSidebarState);
           if (typeof parsedState === "boolean") {
-            setIsCollapsed(parsedState)
-            document.documentElement.style.setProperty("--sidebar-width", parsedState ? "70px" : "280px")
+            setIsCollapsed(parsedState);
+            document.documentElement.style.setProperty("--sidebar-width", parsedState ? "70px" : "280px");
           }
         } else {
-          document.documentElement.style.setProperty("--sidebar-width", "280px")
+          document.documentElement.style.setProperty("--sidebar-width", "280px");
         }
 
-        // Load dark mode preference
-        const savedThemeState = localStorage.getItem("darkMode")
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+        // Load theme preference
+        const savedThemeState = localStorage.getItem("darkMode");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         const isDark = savedThemeState !== null ? 
           (typeof JSON.parse(savedThemeState) === "boolean" ? JSON.parse(savedThemeState) : prefersDark) : 
-          prefersDark
-        
-        setIsDarkMode(isDark)
-        document.documentElement.classList.toggle("dark", isDark)
+          prefersDark;
+        setIsDarkMode(isDark);
+        document.documentElement.classList.toggle("dark", isDark);
       } catch (error) {
-        console.error("Failed to load preferences:", error)
-        document.documentElement.style.setProperty("--sidebar-width", "280px")
-        document.documentElement.classList.toggle("dark", window.matchMedia("(prefers-color-scheme: dark)").matches)
-        
-        toast.error("Failed to load preferences", {
-          description: "Using default settings instead."
-        })
+        console.error("Failed to load preferences:", error);
+        document.documentElement.style.setProperty("--sidebar-width", "280px");
+        document.documentElement.classList.toggle("dark", window.matchMedia("(prefers-color-scheme: dark)").matches);
+        toast.error("Failed to load preferences", { description: "Using default settings instead." });
       }
-    }
+    };
 
-    initializePreferences()
-    
+    initializePreferences();
+
     // Listen for system theme changes
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => {
-      const savedThemeState = localStorage.getItem("darkMode")
+      const savedThemeState = localStorage.getItem("darkMode");
       if (savedThemeState === null) {
-        setIsDarkMode(e.matches)
-        document.documentElement.classList.toggle("dark", e.matches)
+        setIsDarkMode(e.matches);
+        document.documentElement.classList.toggle("dark", e.matches);
       }
-    }
-    
-    mediaQuery.addEventListener("change", handleChange)
-    return () => mediaQuery.removeEventListener("change", handleChange)
-  }, [])
+    };
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
-  // Toggle sidebar collapsed state
+  // Toggle sidebar
   const toggleSidebar = useCallback(() => {
     setIsCollapsed((prev) => {
-      const newState = !prev
+      const newState = !prev;
       try {
-        localStorage.setItem("sidebarCollapsed", JSON.stringify(newState))
-        document.documentElement.style.setProperty("--sidebar-width", newState ? "70px" : "280px")
+        localStorage.setItem("sidebarCollapsed", JSON.stringify(newState));
+        document.documentElement.style.setProperty("--sidebar-width", newState ? "70px" : "280px");
       } catch (error) {
-        console.error("Failed to save sidebar state:", error)
-        toast.error("Failed to save sidebar preference", {
-          description: "Your preference will be lost when you reload the page."
-        })
+        console.error("Failed to save sidebar state:", error);
+        toast.error("Failed to save sidebar preference", { description: "Your preference will be lost when you reload the page." });
       }
-      return newState
-    })
-  }, [])
+      return newState;
+    });
+  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => {
-      const newState = !prev
+      const newState = !prev;
       try {
-        document.documentElement.classList.toggle("dark", newState)
-        localStorage.setItem("darkMode", JSON.stringify(newState))
-        
+        document.documentElement.classList.toggle("dark", newState);
+        localStorage.setItem("darkMode", JSON.stringify(newState));
         toast.success(newState ? "Dark mode enabled" : "Light mode enabled", {
-          description: newState ? "Switched to dark theme" : "Switched to light theme"
-        })
+          description: newState ? "Switched to dark theme" : "Switched to light theme",
+        });
       } catch (error) {
-        console.error("Failed to save theme state:", error)
-        toast.error("Failed to save theme preference", {
-          description: "Your preference will be lost when you reload the page."
-        })
+        console.error("Failed to save theme state:", error);
+        toast.error("Failed to save theme preference", { description: "Your preference will be lost when you reload the page." });
       }
-      return newState
-    })
-  }, [])
+      return newState;
+    });
+  }, []);
 
   const contextValue = useMemo(
     () => ({ isCollapsed, toggleSidebar, isDarkMode, toggleDarkMode, notificationCount }),
     [isCollapsed, toggleSidebar, isDarkMode, toggleDarkMode, notificationCount]
-  )
+  );
 
-  return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
-}
+  return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>;
+};
 
-// Lazy-loaded components
-const LazyMobileSidebar = lazy(() => import("./sidebar-components/mobile-sidebar").then((mod) => ({ default: mod.MobileSidebar })))
-const LazySearchResults = lazy(() => import("./sidebar-components/search-results").then((mod) => ({ default: mod.SearchResults })))
-
-// Loading Skeleton Component
+// Skeleton Loader
 const SidebarSkeleton = ({ count = 5 }: { count?: number }) => (
   <div className="animate-pulse space-y-4 p-4" role="status" aria-label="Loading sidebar">
     <div className="h-8 w-3/4 bg-muted rounded"></div>
     <div className="space-y-2">
-      {Array(count)
-        .fill(0) 
-        .map((_, i) => (
-          <div key={i} className="h-10 bg-muted rounded"></div>
-        ))}
+      {Array(count).fill(0).map((_, i) => (
+        <div key={i} className="h-10 bg-muted rounded"></div>
+      ))}
     </div>
   </div>
-)
+);
 
 // Animation Variants
 const sidebarVariants = {
   expanded: { width: "280px", transition: { type: "spring", stiffness: 300, damping: 30 } },
   collapsed: { width: "70px", transition: { type: "spring", stiffness: 300, damping: 30 } },
-}
+};
 
 const itemVariants = {
   expanded: { opacity: 1, x: 0 },
   collapsed: { opacity: 0, x: -10 },
-}
+};
 
 const badgeVariants = {
   expanded: { scale: 1, opacity: 1 },
   collapsed: { scale: 0, opacity: 0 },
-}
+};
 
-// Fallback UI for error boundary
-const ErrorFallback = ({ error, resetError }: { error: Error; resetError: () => void }) => (
-  <div className="p-4 text-center" role="alert">
-    <p className="text-sm text-destructive font-medium">Failed to load component</p>
-    <p className="text-xs text-muted-foreground mt-1 mb-3">{error.message || "An unexpected error occurred."}</p>
-    <Button 
-      variant="outline" 
-      size="sm" 
-      onClick={resetError} 
-      aria-label="Retry loading component"
-    >
-      Retry
-    </Button>
-  </div>
-)
-
-/**
- * NavItem component for rendering sidebar navigation items
- */
+// NavItem Component
 const NavItem = React.memo(
-  ({ item, showPin = true, isPinned = false, togglePinItem, pathname, isCollapsed }: {
-    item: NavItem
-    showPin?: boolean
-    isPinned?: boolean
-    togglePinItem?: (item: NavItem) => void
-    pathname: string
-    isCollapsed: boolean
+  ({ 
+    item, 
+    showPin = true, 
+    isPinned = false, 
+    togglePinItem, 
+    pathname, 
+    isCollapsed 
+  }: {
+    item: NavItem;
+    showPin?: boolean;
+    isPinned?: boolean;
+    togglePinItem?: (item: NavItem) => void;
+    pathname: string;
+    isCollapsed: boolean;
   }) => {
     const isActive = useMemo(() => {
       if (pathname === item.href) return true;
       if (item.href === "/dashboard" && pathname !== "/dashboard") return false;
       return !item.isExternal && pathname.startsWith(item.href);
-    }, [pathname, item.href, item.isExternal])
+    }, [pathname, item.href, item.isExternal]);
 
     const handlePinClick = useCallback(
       (e: React.MouseEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (togglePinItem) togglePinItem(item)
+        e.preventDefault();
+        e.stopPropagation();
+        if (togglePinItem) togglePinItem(item);
       },
       [item, togglePinItem]
-    )
+    );
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          if (!item.isDisabled && item.onClick) item.onClick()
+          e.preventDefault();
+          if (!item.isDisabled && item.onClick) item.onClick();
         }
       },
       [item]
-    )
+    );
 
     const handlePinKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          e.stopPropagation()
-          if (togglePinItem) togglePinItem(item)
+          e.preventDefault();
+          e.stopPropagation();
+          if (togglePinItem) togglePinItem(item);
         }
       },
       [item, togglePinItem]
-    )
+    );
 
     const navItemContent = (
       <motion.div 
@@ -307,7 +319,9 @@ const NavItem = React.memo(
         whileTap={!item.isDisabled ? { scale: 0.98 } : {}} 
         className="flex items-center gap-3 w-full"
       >
-        <motion.div className={cn("w-6 h-6 flex-shrink-0", item.isDisabled && "opacity-50")}>{item.icon}</motion.div>
+        <motion.div className={cn("w-6 h-6 flex-shrink-0", item.isDisabled && "opacity-50")}>
+          {item.icon}
+        </motion.div>
         <AnimatePresence>
           {!isCollapsed && (
             <motion.span 
@@ -347,7 +361,7 @@ const NavItem = React.memo(
           />
         )}
       </motion.div>
-    )
+    );
 
     const navItemWrapper = () => {
       if (item.isDisabled) {
@@ -360,7 +374,7 @@ const NavItem = React.memo(
           >
             {navItemContent}
           </div>
-        )
+        );
       } else if (item.isExternal && item.href) {
         return (
           <a
@@ -376,7 +390,7 @@ const NavItem = React.memo(
           >
             {navItemContent}
           </a>
-        )
+        );
       } else if (item.href) {
         return (
           <Link
@@ -391,7 +405,7 @@ const NavItem = React.memo(
           >
             {navItemContent}
           </Link>
-        )
+        );
       } else {
         return (
           <div
@@ -406,9 +420,9 @@ const NavItem = React.memo(
           >
             {navItemContent}
           </div>
-        )
+        );
       }
-    }
+    };
 
     return (
       <TooltipProvider delayDuration={300}>
@@ -461,47 +475,13 @@ const NavItem = React.memo(
           )}
         </Tooltip>
       </TooltipProvider>
-    )
+    );
   }
-)
+);
 
-NavItem.displayName = "NavItem"
+NavItem.displayName = "NavItem";
 
-// ErrorBoundary Component
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Sidebar Error:', error, errorInfo)
-    toast.error("An error occurred in the sidebar", {
-      description: "Please try refreshing the page if the problem persists."
-    })
-  }
-
-  resetError = () => {
-    this.setState({ hasError: false, error: null })
-  }
-
-  render() {
-    if (this.state.hasError) {
-      const FallbackComponent = this.props.fallbackComponent || ErrorFallback
-      return <FallbackComponent error={this.state.error!} resetError={this.resetError} />
-    }
-
-    return this.props.children
-  }
-}
-
-/**
- * SidebarContent component for rendering sidebar content
- */
+// Sidebar Content Component
 const SidebarContent = React.memo(
   ({ 
     pinnedItems, 
@@ -515,80 +495,75 @@ const SidebarContent = React.memo(
     isCollapsed,
     toggleSidebar
   }: {
-    pinnedItems: NavItem[]
-    togglePinItem: (item: NavItem) => void
-    searchQuery: string
-    setSearchQuery: (query: string) => void
-    showSearchResults: boolean
-    setShowSearchResults: React.Dispatch<React.SetStateAction<boolean>>
-    addToRecentPages?: (item: NavItem) => void
-    recentPages?: NavItem[]
-    isCollapsed: boolean
-    toggleSidebar: () => void
+    pinnedItems: NavItem[];
+    togglePinItem: (item: NavItem) => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    showSearchResults: boolean;
+    setShowSearchResults: React.Dispatch<React.SetStateAction<boolean>>;
+    addToRecentPages?: (item: NavItem) => void;
+    recentPages?: NavItem[];
+    isCollapsed: boolean;
+    toggleSidebar: () => void;
   }) => {
-    const { isDarkMode, toggleDarkMode } = useSidebar()
-    const pathname = usePathname()
-    const { user, address, disconnect } = useAuth()
-    const router = useRouter()
+    const { isDarkMode, toggleDarkMode } = useSidebar();
+    const pathname = usePathname();
+    const { user, address, disconnect } = useAuth();
+    const router = useRouter();
 
     const filteredItems = useMemo(() => {
-      const searchTerm = searchQuery.toLowerCase().trim()
-      if (!searchTerm) return []
-      
+      const searchTerm = searchQuery.toLowerCase().trim();
+      if (!searchTerm) return [];
       return NAV_ITEMS.filter(item => 
         item.title.toLowerCase().includes(searchTerm) || 
         (item.badge && item.badge.toLowerCase().includes(searchTerm))
-      )
-    }, [searchQuery])
+      );
+    }, [searchQuery]);
 
     const categorizedNavItems = useMemo(() => {
-      const pinnedHrefs = new Set(pinnedItems.map(item => item.href))
-      
+      const pinnedHrefs = new Set(pinnedItems.map(item => item.href));
       const main = NAV_ITEMS.filter(item =>
         ["/dashboard", "/dashboard/wallet", "/dashboard/portfolio", "/dashboard/subscriptions", "/dashboard/social", "/dashboard/swap", "/dashboard/education"].includes(item.href)
         && !pinnedHrefs.has(item.href)
-      )
-      
+      );
       const finance = NAV_ITEMS.filter(item => 
         ["/dashboard/savings", "/dashboard/defi"].includes(item.href)
         && !pinnedHrefs.has(item.href)
-      )
-      
+      );
       const utility = NAV_ITEMS.filter(item => 
         ["/dashboard/settings", "/dashboard/help"].includes(item.href)
         && !pinnedHrefs.has(item.href)
-      )
-      
-      return { main, finance, utility }
-    }, [pinnedItems])
+      );
+      return { main, finance, utility };
+    }, [pinnedItems]);
 
     const debouncedSearch = useCallback(
       debounce((value: string) => {
-        const sanitizedValue = value.replace(/[<>]/g, "").trim()
-        setSearchQuery(sanitizedValue)
-        setShowSearchResults(sanitizedValue.length > 0)
+        const sanitizedValue = value.replace(/[<>]/g, "").trim();
+        setSearchQuery(sanitizedValue);
+        setShowSearchResults(sanitizedValue.length > 0);
       }, 200),
       [setSearchQuery, setShowSearchResults]
-    )
+    );
 
     useEffect(() => {
       return () => {
-        debouncedSearch.cancel()
-      }
-    }, [debouncedSearch])
+        debouncedSearch.cancel();
+      };
+    }, [debouncedSearch]);
 
     const handleClearSearch = useCallback(() => {
-      setSearchQuery('')
-      setShowSearchResults(false)
-    }, [setSearchQuery, setShowSearchResults])
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }, [setSearchQuery, setShowSearchResults]);
 
     const handleDisconnect = useCallback(() => {
-      disconnect()
-      router.push("/")
+      disconnect();
+      router.push("/");
       toast.success("Successfully logged out", {
         description: "You have been redirected to the home page"
-      })
-    }, [disconnect, router])
+      });
+    }, [disconnect, router]);
 
     return (
       <nav aria-label="Main sidebar navigation" className="flex flex-col h-full">
@@ -612,9 +587,7 @@ const SidebarContent = React.memo(
               )}
             </AnimatePresence>
           </Link>
-          
           <div className="flex items-center gap-2">
-            
             <Button
               variant="ghost"
               size="icon"
@@ -707,7 +680,7 @@ const SidebarContent = React.memo(
                     </div>
                   </div>
                 )}
-
+                
                 {/* Recent Pages */}
                 {recentPages.length > 0 && (
                   <div className="space-y-1">
@@ -733,7 +706,7 @@ const SidebarContent = React.memo(
                     </div>
                   </div>
                 )}
-
+                
                 {/* Main Navigation */}
                 {categorizedNavItems.main.length > 0 && (
                   <div className="space-y-1">
@@ -759,7 +732,7 @@ const SidebarContent = React.memo(
                     </div>
                   </div>
                 )}
-
+                
                 {/* Finance Navigation */}
                 {categorizedNavItems.finance.length > 0 && (
                   <div className="space-y-1">
@@ -785,37 +758,11 @@ const SidebarContent = React.memo(
                     </div>
                   </div>
                 )}
-
-                {/* Utility Navigation */}
-                {categorizedNavItems.utility.length > 0 && (
-                  <div className="space-y-1">
-                    <h2 
-                      className={cn(
-                        "text-xs font-semibold text-muted-foreground uppercase", 
-                        isCollapsed && "sr-only"
-                      )} 
-                      id="utility-nav-heading"
-                    >
-                      Utility
-                    </h2>
-                    <div role="list" aria-labelledby="utility-nav-heading">
-                      {categorizedNavItems.utility.map((item) => (
-                        <NavItem
-                          key={`utility-${item.href}`}
-                          item={item}
-                          togglePinItem={togglePinItem}
-                          pathname={pathname}
-                          isCollapsed={isCollapsed}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
         </ScrollArea>
-
+        
         {/* Sidebar Footer */}
         <div className="border-t p-4">
           <div className={cn(
@@ -850,16 +797,13 @@ const SidebarContent = React.memo(
           </div>
         </div>
       </nav>
-    )
+    );
   }
-)
+);
 
-SidebarContent.displayName = "SidebarContent"
+SidebarContent.displayName = "SidebarContent";
 
-/**
- * Main DashboardSidebar component
- * Optimized for performance with memoization
- */
+// Main Dashboard Sidebar Component
 export const DashboardSidebar = React.memo(function DashboardSidebar({ 
   isCollapsed, 
   setIsCollapsed 
@@ -867,17 +811,16 @@ export const DashboardSidebar = React.memo(function DashboardSidebar({
   isCollapsed: boolean; 
   setIsCollapsed: (value: boolean) => void 
 }) {
-  // Memoized toggle sidebar handler to prevent unnecessary re-renders
+  // Memoized toggle sidebar handler
   const handleToggleSidebar = useCallback(() => {
     setIsCollapsed(!isCollapsed);
-    // Note: We removed localStorage handling here as it's now centralized in client-layout.tsx
   }, [isCollapsed, setIsCollapsed]);
 
   // Memoized empty functions to prevent unnecessary re-renders
   const noop = useCallback(() => {}, []);
   const noopWithParam = useCallback((param: any) => {}, []);
 
-  // Memoized sidebar content props to prevent unnecessary re-renders
+  // Memoized sidebar content props
   const sidebarContentProps = useMemo(() => ({
     isCollapsed,
     toggleSidebar: handleToggleSidebar,
@@ -903,20 +846,7 @@ export const DashboardSidebar = React.memo(function DashboardSidebar({
       style={{ width: isCollapsed ? '70px' : '280px' }}
       layoutId="sidebar"
     >
-      <button
-        onClick={handleToggleSidebar}
-        className="absolute -right-3 top-20 w-6 h-12 bg-primary rounded-r-md z-40"
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!isCollapsed}
-      >
-        <ChevronRight 
-          className={cn(
-            "h-4 w-4 text-primary-foreground",
-            !isCollapsed && "rotate-180"
-          )} 
-        />
-      </button>
       <SidebarContent {...sidebarContentProps} />
     </motion.div>
-  )
-})
+  );
+});
