@@ -689,9 +689,6 @@ export default function SubscriptionManagement() {
                     : "Not Connected"}
                 </span>
               </div>
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
-              </Button>
             </CardContent>
           </Card>
         </motion.div>

@@ -356,8 +356,8 @@ const NavItem = React.memo(
         )}
         {isActive && (
           <motion.div 
-            className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary" 
-            layoutId="activeNavIndicator" 
+            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary z-10"
+            layoutId="activeNavIndicator"
           />
         )}
       </motion.div>
@@ -448,7 +448,7 @@ const NavItem = React.memo(
                   aria-pressed={isPinned}
                 >
                   <Pin 
-                    className={cn("h-4 w-4", isPinned && "fill-primary text-primary")} 
+                    className={cn("h-4 w-4 mr-4", isPinned && "fill-primary text-primary")} 
                     aria-hidden="true" 
                   />
                 </Button>
@@ -764,13 +764,19 @@ const SidebarContent = React.memo(
         </ScrollArea>
         
         {/* Sidebar Footer */}
-        <div className="border-t p-4">
+        <div className={cn(
+          "border-t",
+          isCollapsed ? "flex justify-center items-center py-4" : "p-4"
+        )}>
           <div className={cn(
-            "flex items-center gap-3",
-            isCollapsed ? "justify-center" : "px-3"
+            "flex items-center",
+            isCollapsed ? "justify-center gap-2" : "gap-3 px-3"
           )}>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-medium">
-              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+            <div className={cn(
+              "rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-medium",
+              isCollapsed ? "h-7 w-7" : "h-8 w-8"
+            )}>
+              {user?.name?.[0] || "S"}
             </div>
             <AnimatePresence>
               {!isCollapsed && (
@@ -789,7 +795,10 @@ const SidebarContent = React.memo(
               variant="ghost"
               size="icon"
               onClick={handleDisconnect}
-              className="h-8 w-8 rounded-full hover:bg-primary/10"
+              className={cn(
+                "h-8 w-8 rounded-full hover:bg-primary/10",
+                isCollapsed && "ml-0"
+              )}
               aria-label="Disconnect wallet"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
