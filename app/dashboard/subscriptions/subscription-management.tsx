@@ -733,6 +733,7 @@ export default function SubscriptionManagement() {
               <div className="flex items-center">
                 <Tag className="h-6 w-6 text-indigo-600 mr-2" />
                 <span className="text-2xl font-bold">{stats.topCategory}</span>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
