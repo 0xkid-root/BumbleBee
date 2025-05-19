@@ -4,6 +4,19 @@
  */
 
 // Types
+// Define our own PublicKeyCredential interface to avoid conflicts with DOM types
+interface WebAuthnPublicKeyCredential extends Credential {
+  rawId: ArrayBuffer;
+  response: {
+    clientDataJSON: ArrayBuffer;
+    attestationObject?: ArrayBuffer;
+    authenticatorData?: ArrayBuffer;
+    signature?: ArrayBuffer;
+    userHandle?: ArrayBuffer | null;
+  };
+  getClientExtensionResults(): Record<string, any>;
+}
+
 export interface PasskeyCredential {
   id: string;
   rawId: string;
@@ -136,9 +149,9 @@ export async function registerPasskey(
     };
 
     // Create a new credential
-    const credential = await (navigator.credentials as any).create({
-      publicKey: publicKeyCredentialCreationOptions,
-    });
+    const credential = await navigator.credentials.create({
+      publicKey: publicKeyCredentialCreationOptions as any,
+    }) as WebAuthnPublicKeyCredential;
 
     // Convert the credential to a serializable object
     const passkeyCredential: PasskeyCredential = {
@@ -148,7 +161,9 @@ export async function registerPasskey(
       authenticatorAttachment: (credential as any).authenticatorAttachment,
       response: {
         clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
-        attestationObject: arrayBufferToBase64(credential.response.attestationObject),
+        attestationObject: credential.response.attestationObject 
+          ? arrayBufferToBase64(credential.response.attestationObject)
+          : undefined,
       },
       clientExtensionResults: credential.getClientExtensionResults(),
     };
@@ -177,9 +192,9 @@ export async function authenticateWithPasskey(): Promise<PasskeyCredential | nul
     };
 
     // Get the credential
-    const credential = await (navigator.credentials as any).get({
-      publicKey: publicKeyCredentialRequestOptions,
-    });
+    const credential = await navigator.credentials.get({
+      publicKey: publicKeyCredentialRequestOptions as any,
+    }) as WebAuthnPublicKeyCredential;
 
     // Convert the credential to a serializable object
     const passkeyCredential: PasskeyCredential = {
@@ -188,8 +203,12 @@ export async function authenticateWithPasskey(): Promise<PasskeyCredential | nul
       type: credential.type,
       response: {
         clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
-        authenticatorData: arrayBufferToBase64(credential.response.authenticatorData),
-        signature: arrayBufferToBase64(credential.response.signature),
+        authenticatorData: credential.response.authenticatorData 
+          ? arrayBufferToBase64(credential.response.authenticatorData)
+          : undefined,
+        signature: credential.response.signature
+          ? arrayBufferToBase64(credential.response.signature)
+          : undefined,
         userHandle: credential.response.userHandle
           ? arrayBufferToBase64(credential.response.userHandle)
           : undefined,

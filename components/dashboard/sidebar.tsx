@@ -29,6 +29,7 @@ import {
   BookOpen,
   Repeat,
   ExternalLink,
+  X,
 } from "lucide-react"
 import { debounce } from "lodash"
 
@@ -69,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Portfolio", href: "/dashboard/portfolio", icon: <LineChart className="h-5 w-5 text-green-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Subscriptions", href: "/dashboard/subscriptions", icon: <Repeat className="h-5 w-5 text-orange-500" /> },
   { title: "Social Payments", href: "/dashboard/social", icon: <Users className="h-5 w-5 text-pink-500" /> },
-  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
+  { title: "Token Swap", href: "/dashboard/swap", icon: <ArrowRightLeft className="h-5 w-5 text-indigo-500" /> },
   { title: "AI Education", href: "/dashboard/education", icon: <BookOpen className="h-5 w-5 text-cyan-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "Savings", href: "/dashboard/savings", icon: <PiggyBank className="h-5 w-5 text-rose-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
   { title: "DeFi Yields", href: "/dashboard/defi", icon: <Coins className="h-5 w-5 text-amber-500" />, badge: "Coming soon", badgeColor: "bg-white text-indigo-300" },
@@ -576,14 +577,14 @@ const SidebarContent = React.memo(
           >
             <AnimatePresence>
               {!isCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: "auto" }}
-                  exit={{ opacity: 0, width: 0 }}
-                  className="font-bold text-lg bg-gradient-to-r from-amber-500 to-amber-700 bg-clip-text text-transparent"
-                >
-                  Bumblebee
-                </motion.div>
+                 <motion.div
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: "auto" }}
+            transition={{ duration: 0.6 }}
+            className="font-bold text-2xl bg-gradient-to-r from-amber-500 to-amber-700 bg-clip-text text-transparent"
+          >
+            Bumblebee
+          </motion.div>
               )}
             </AnimatePresence>
           </Link>
@@ -607,37 +608,36 @@ const SidebarContent = React.memo(
         {/* Sidebar Content */}
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4" role="list">
-            {/* Search Bar */}
-            {!isCollapsed && (
-              <div className="relative">
-                <Search 
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" 
-                  aria-hidden="true" 
-                />
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => debouncedSearch(e.target.value)}
-                  className="pl-8 pr-8 text-sm"
-                  aria-label="Search navigation"
-                  maxLength={100}
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 hover:bg-primary/10 rounded-full"
-                    onClick={handleClearSearch}
-                    aria-label="Clear search"
-                  >
-                    <span aria-hidden="true">×</span>
-                  </Button>
-                )}
-              </div>
-            )}
-            
-            {/* Search Results or Main Navigation */}
+           {/* Search Bar */}
+{/* Search Bar */}
+{!isCollapsed && (
+  <div className="relative">
+    <Search
+      className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+      aria-hidden="true"
+    />
+    <Input
+      type="search"
+      placeholder="Search..."
+      value={searchQuery}
+      onChange={(e) => debouncedSearch(e.target.value)}
+      className="pl-8 pr-8 text-sm w-60"
+      aria-label="Search navigation"
+      maxLength={100}
+    />
+    {searchQuery && (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 hover:bg-primary/10 rounded-full"
+        onClick={handleClearSearch}
+        aria-label="Clear search"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    )}
+  </div>
+)}            {/* Search Results or Main Navigation */}
             {showSearchResults ? (
               <Suspense fallback={<SidebarSkeleton count={3} />}>
                 <ErrorBoundary>
