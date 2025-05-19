@@ -1,5 +1,4 @@
 import { Suspense } from "react"
-import WalletPageClient from "./WalletPageClient"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export const metadata = {
@@ -19,7 +18,6 @@ export default function WalletPage() {
           <rect width="100%" height="100%" fill="url(#honeycomb)" />
         </svg>
       </div>
-      <WalletPageClient />
     </Suspense>
   )
 }

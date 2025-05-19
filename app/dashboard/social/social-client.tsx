@@ -38,15 +38,31 @@ import {
   UserPlus,
   Wallet,
   CheckCircle2,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CreateTabModal } from "./modals/create-tab-modal";
+import { AddMemberModal } from "./modals/add-member-modal";
+import { RemoveMemberModal } from "./modals/remove-member-modal";
+import { DeleteTabModal } from "./modals/delete-tab-modal";
+
+interface Tab {
+  id: string;
+  name: string;
+  members: string[];
+  memberCount: number;
+  totalExpenses: string;
+  created: string;
+  color: string;
+}
 
 // Contract Address - Update this after deployment
 const CONTRACT_ADDRESS = "0xYourContractAddressHere";
 
 // Mock Data
-const mockTabs = [
+const mockTabs: Tab[] = [
   {
     id: "0",
     name: "Bali Vacation",
@@ -54,6 +70,7 @@ const mockTabs = [
     totalExpenses: "1.85 ETH",
     created: "May 10, 2025",
     color: "from-indigo-500 to-purple-500",
+    members: ["0x7F52...9E1d", "0x3A12...76B2", "0x9C67...12E8", "0xF87...92A"]
   },
   {
     id: "1",
@@ -62,6 +79,7 @@ const mockTabs = [
     totalExpenses: "0.72 ETH",
     created: "May 12, 2025",
     color: "from-emerald-500 to-teal-500",
+    members: ["0x7F52...9E1d", "0x4D21...58C3", "0x9C67...12E8", "0xF87...92A", "0x3A12...76B2", "0x5B89...91F4"]
   },
   {
     id: "2",
@@ -70,6 +88,7 @@ const mockTabs = [
     totalExpenses: "0.32 ETH",
     created: "May 15, 2025",
     color: "from-amber-500 to-orange-500",
+    members: ["0x7F52...9E1d", "0x3A12...76B2", "0x9C67...12E8"]
   },
 ];
 
@@ -184,9 +203,13 @@ export default function SocialPayments() {
     useState(false);
   const [isStreamModalOpen, setIsStreamModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isRemoveMemberModalOpen, setIsRemoveMemberModalOpen] = useState(false);
+  const [isDeleteTabModalOpen, setIsDeleteTabModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
+
+  const [tabs, setTabs] = useState<Tab[]>([]);
 
   // Simulate loading data
   useEffect(() => {
@@ -338,6 +361,67 @@ export default function SocialPayments() {
     }, 1500);
   };
 
+  // Handle Remove Member
+  const handleRemoveMember = async (tabId: string, memberAddress: string) => {
+    setLoading(true);
+    try {
+      // Simulate contract interaction
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setTabs(tabs.map(tab => 
+        tab.id === tabId 
+          ? { 
+              ...tab, 
+              members: tab.members.filter(member => member !== memberAddress),
+              memberCount: tab.memberCount - 1
+            }
+          : tab
+      ));
+      
+      toast({
+        title: "Success",
+        description: `Member ${memberAddress} removed from tab.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove member.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setIsRemoveMemberModalOpen(false);
+    }
+  };
+
+  // Handle Delete Tab
+  const handleDeleteTab = async (tabId: string) => {
+    setLoading(true);
+    try {
+      // Simulate contract interaction
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setTabs(tabs.filter(tab => tab.id !== tabId));
+      if (selectedTabId === tabId) {
+        setSelectedTabId(null);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Tab deleted successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tab.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setIsDeleteTabModalOpen(false);
+    }
+  };
+
   const renderSelectedTabDetails = () => {
     if (!selectedTabId) return null;
 
@@ -399,7 +483,7 @@ export default function SocialPayments() {
             onClick={() => setIsCreateTabModalOpen(true)}
             className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
           >
-            <PlusCircle className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" />
             Create Tab
           </Button>
         </motion.div>
@@ -608,7 +692,7 @@ export default function SocialPayments() {
                       </>
                     ) : (
                       <>
-                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4" />
                         Add Expense
                       </>
                     )}
@@ -862,130 +946,20 @@ export default function SocialPayments() {
       </motion.div>
 
       {/* Create Tab Modal */}
-      <AnimatePresence>
-        {isCreateTabModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
-            >
-              <h2 className="text-xl font-semibold mb-4">Create New Tab</h2>
-              <div className="space-y-4">
-                <div>
-                  <Label>Tab Name</Label>
-                  <Input
-                    value={tabName}
-                    onChange={(e) => setTabName(e.target.value)}
-                    placeholder="e.g., Vacation Fund"
-                    className="border-indigo-200 dark:border-indigo-800/30"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateTabModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateTab}
-                  disabled={loading || !tabName.trim()}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Tab"
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CreateTabModal
+        isOpen={isCreateTabModalOpen}
+        onClose={() => setIsCreateTabModalOpen(false)}
+        onSubmit={handleCreateTab}
+      />
 
       {/* Add Member Modal */}
-      <AnimatePresence>
-        {isAddMemberModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
-            >
-              <h2 className="text-xl font-semibold mb-4">Add Member</h2>
-              <div className="space-y-4">
-                <div>
-                  <Label>Select Tab</Label>
-                  <Select
-                    onValueChange={setSelectedTabId}
-                    value={selectedTabId || ""}
-                  >
-                    <SelectTrigger className="border-amber-200 dark:border-amber-500/30">
-                      <SelectValue placeholder="Select a tab" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockTabs.map((tab) => (
-                        <SelectItem key={tab.id} value={tab.id}>
-                          {tab.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Member Address</Label>
-                  <Input
-                    value={memberAddress}
-                    onChange={(e) => setMemberAddress(e.target.value)}
-                    placeholder="0x..."
-                    className="border-indigo-200 dark:border-indigo-800/30"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAddMemberModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleAddMember}
-                  disabled={loading || !selectedTabId || !memberAddress}
-                  className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-indigo-700 hover:to-purple-700"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    "Add Member"
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AddMemberModal
+        isOpen={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        onSubmit={handleAddMember}
+        tabs={mockTabs}
+        selectedTabId={selectedTabId}
+      />
 
       {/* Add Expense Modal */}
       <AnimatePresence>
@@ -1312,6 +1286,24 @@ export default function SocialPayments() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Remove Member Modal */}
+      <RemoveMemberModal
+        isOpen={isRemoveMemberModalOpen}
+        onClose={() => setIsRemoveMemberModalOpen(false)}
+        onSubmit={handleRemoveMember}
+        tabs={tabs}
+        selectedTabId={selectedTabId}
+      />
+
+      {/* Delete Tab Modal */}
+      <DeleteTabModal
+        isOpen={isDeleteTabModalOpen}
+        onClose={() => setIsDeleteTabModalOpen(false)}
+        onSubmit={handleDeleteTab}
+        tabs={tabs}
+        selectedTabId={selectedTabId}
+      />
     </div>
   );
 }

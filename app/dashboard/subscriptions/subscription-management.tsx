@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { formatEther, Address } from "viem";
 import {
   Plus,
   Edit,
@@ -30,6 +31,8 @@ import {
   Download,
   UserPlus,
   Loader2,
+  Info,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -44,29 +47,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TooltipProvider,
@@ -79,9 +65,21 @@ import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 import { isAddress } from "viem";
 import { erc7710WalletActions } from "@metamask/delegation-toolkit/experimental";
 import { v4 as uuidv4 } from 'uuid';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { sepolia as chain } from "viem/chains";
+import { createSessionAccount } from "@/lib/config";
+import { calculateStreamParams } from "@/lib/streaming";
+export interface StreamConfig {
+  expiry: number;
+  amountPerSecond: string;
+  maxAmount: string;
+  startTime: number;
+}
 
-// Types
-interface Subscription {
+export interface Subscription {
   id: string;
   name: string;
   amount: string;
@@ -107,6 +105,7 @@ interface Subscription {
   sharedWith?: string[];
   permissionsContext?: any;
   delegationManager?: string;
+  streamConfig?: StreamConfig;
 }
 
 // Animation variants
@@ -119,18 +118,125 @@ const containerVariants = {
     },
   },
 };
+
 const itemVariants = {
   hidden: { y: 20, opacity: 0 },
   show: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300 } },
 };
+
+// Status variants
+const statusVariants = {
+  active: {
+    bg: "bg-green-100 dark:bg-green-900/30",
+    text: "text-green-800 dark:text-green-400",
+    icon: CheckCircle,
+  },
+  paused: {
+    bg: "bg-amber-100 dark:bg-amber-900/30",
+    text: "text-amber-800 dark:text-amber-400",
+    icon: AlertCircle,
+  },
+  expiring: {
+    bg: "bg-red-100 dark:bg-red-900/30",
+    text: "text-red-800 dark:text-red-400",
+    icon: AlertCircle,
+  },
+  shared: {
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-blue-800 dark:text-blue-400",
+    icon: Sparkles,
+  },
+};
+
+// Educational Content Component
+interface ERC7715EducationProps {
+  onClose: () => void;
+}
+
+const ERC7715Education = ({ onClose }: ERC7715EducationProps) => {
+  return (
+    <motion.div
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -50, opacity: 0 }}
+      className="mb-6"
+    >
+      <Card className="bg-indigo-50 dark:bg-indigo-950/30 border-l-4 border-indigo-500">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-start">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-indigo-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-lg text-indigo-800 dark:text-indigo-200">
+                  Understanding Smart Subscriptions (ERC-7715)
+                </h3>
+                <div className="mt-2 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    1. First, you grant spending permissions to your smart account
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    2. Your smart account automatically pays subscriptions from your wallet
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    3. No need to manually approve each payment
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+function useStreamProgress(subscription: Subscription | null) {
+  const [progress, setProgress] = useState<{
+    streamed: bigint;
+    remaining: bigint;
+    percentComplete: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!subscription?.streamConfig) return;
+
+    const updateProgress = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const config = subscription.streamConfig!;
+      
+      const duration = config.expiry - config.startTime;
+      const elapsed = now - config.startTime;
+      
+      const amountPerSecond = BigInt(config.amountPerSecond);
+      const streamed = amountPerSecond * BigInt(elapsed);
+      const maxAmount = BigInt(config.maxAmount);
+      
+      setProgress({
+        streamed,
+        remaining: maxAmount - streamed,
+        percentComplete: (elapsed / duration) * 100
+      });
+    };
+
+    updateProgress();
+    const interval = setInterval(updateProgress, 1000);
+    return () => clearInterval(interval);
+  }, [subscription]);
+
+  return progress;
+}
 
 export default function SubscriptionManagement() {
   const { toast } = useToast();
   const { address, isConnected } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
-
+  
   // State
+  const [showERC7715Info, setShowERC7715Info] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -139,6 +245,7 @@ export default function SubscriptionManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedSubscription, setExpandedSubscription] = useState<string | null>(null);
   
+  // Form state
   const [formState, setFormState] = useState<Subscription>({
     id: "",
     name: "",
@@ -158,6 +265,8 @@ export default function SubscriptionManagement() {
     color: "#6366F1",
   });
   
+  const [erc7715Loading, setErc7715Loading] = useState(false);
+  const [erc7715Error, setErc7715Error] = useState<string | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [activeTab, setActiveTab] = useState("all");
@@ -166,42 +275,19 @@ export default function SubscriptionManagement() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState("grid");
-
+  
   // Constants
   const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
   const categories = ["Entertainment", "Productivity", "Storage", "Shopping", "Finance", "Health & Fitness", "Education", "Utilities", "Food & Drink", "Gaming", "News", "Social", "Travel", "Other"];
   const frequencies = ["Daily", "Weekly", "Bi-weekly", "Monthly", "Quarterly", "Yearly"];
   const paymentMethods = ["MetaMask", "WalletConnect", "Coinbase Wallet", "Credit Card", "Apple Pay", "PayPal", "Bank Transfer"];
   
-  const statusVariants = {
-    active: {
-      bg: "bg-green-100 dark:bg-green-900/30",
-      text: "text-green-800 dark:text-green-400",
-      icon: CheckCircle,
-    },
-    paused: {
-      bg: "bg-amber-100 dark:bg-amber-900/30",
-      text: "text-amber-800 dark:text-amber-400",
-      icon: AlertCircle,
-    },
-    expiring: {
-      bg: "bg-red-100 dark:bg-red-900/30",
-      text: "text-red-800 dark:text-red-400",
-      icon: AlertCircle,
-    },
-    shared: {
-      bg: "bg-blue-100 dark:bg-blue-900/30",
-      text: "text-blue-800 dark:text-blue-400",
-      icon: Sparkles,
-    },
-  };
-
   // Generate random colors
   const generateRandomColor = () => {
     const colors = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#EF4444", "#6366F1", "#14B8A6", "#F97316", "#8B5CF6"];
     return colors[Math.floor(Math.random() * colors.length)];
   };
-
+  
   // Format date for display
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
@@ -212,7 +298,7 @@ export default function SubscriptionManagement() {
       day: "numeric",
     });
   };
-
+  
   // Generate subscription logos
   const getLogoUrl = (name: string) => {
     const logos: { [key: string]: string } = {
@@ -240,24 +326,16 @@ export default function SubscriptionManagement() {
       `https://ui-avatars.com/api/?name= ${encodeURIComponent(name)}&background=${generateRandomColor().substring(1)}&color=fff&size=128`
     );
   };
-
+  
   // Calculate subscription stats
   const getSubscriptionStats = () => {
     const totalMonthly = subscriptions
       .filter((sub) => sub.status === "active")
-      .reduce((sum, sub) => {
-        if (sub.frequency === "Monthly") return sum + sub.numericAmount;
-        if (sub.frequency === "Weekly") return sum + sub.numericAmount * 4.33;
-        if (sub.frequency === "Bi-weekly") return sum + sub.numericAmount * 2.17;
-        if (sub.frequency === "Yearly") return sum + sub.numericAmount / 12;
-        if (sub.frequency === "Quarterly") return sum + sub.numericAmount / 3;
-        if (sub.frequency === "Daily") return sum + sub.numericAmount * 30;
-        return sum;
-      }, 0);
+      .reduce((sum, sub) => sum + sub.numericAmount, 0);
     
     const totalYearly = totalMonthly * 12;
-    const categoryCounts: { [key: string]: number } = {};
     
+    const categoryCounts: { [key: string]: number } = {};
     subscriptions.forEach((sub) => {
       categoryCounts[sub.category] = (categoryCounts[sub.category] || 0) + 1;
     });
@@ -277,35 +355,7 @@ export default function SubscriptionManagement() {
       categoryCounts,
     };
   };
-
-  // Generate next payment date
-  const calculateNextPaymentDate = (frequency: string, baseDate = new Date()) => {
-    const date = new Date(baseDate);
-    switch (frequency) {
-      case "Daily":
-        date.setDate(date.getDate() + 1);
-        break;
-      case "Weekly":
-        date.setDate(date.getDate() + 7);
-        break;
-      case "Bi-weekly":
-        date.setDate(date.getDate() + 14);
-        break;
-      case "Monthly":
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case "Quarterly":
-        date.setMonth(date.getMonth() + 3);
-        break;
-      case "Yearly":
-        date.setFullYear(date.getFullYear() + 1);
-        break;
-      default:
-        date.setMonth(date.getMonth() + 1);
-    }
-    return date.toISOString().split("T")[0];
-  };
-
+  
   // Load initial subscriptions from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -313,87 +363,19 @@ export default function SubscriptionManagement() {
       if (savedSubscriptions) {
         setSubscriptions(JSON.parse(savedSubscriptions));
       } else {
-        const now = new Date();
-        const monthAgo = new Date(now);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-        
-        const defaultSubs: Subscription[] = [
-          {
-            id: "sub_1",
-            name: "Netflix",
-            amount: "$15.99",
-            numericAmount: 15.99,
-            frequency: "Monthly",
-            nextPayment: calculateNextPaymentDate("Monthly"),
-            category: "Entertainment",
-            paymentMethod: "Credit Card",
-            status: "active",
-            description: "Premium streaming plan",
-            erc7715: false,
-            logo: getLogoUrl("Netflix"),
-            createdAt: new Date(2023, 5, 15).toISOString(),
-            lastPayment: monthAgo.toISOString(),
-            totalSpent: "$159.90",
-            totalPayments: 10,
-            color: "#E50914",
-          },
-          {
-            id: "sub_2",
-            name: "Spotify",
-            amount: "$9.99",
-            numericAmount: 9.99,
-            frequency: "Monthly",
-            nextPayment: calculateNextPaymentDate("Monthly"),
-            category: "Entertainment",
-            paymentMethod: "PayPal",
-            status: "active",
-            description: "Music streaming, family plan",
-            contractAddress: "0xAbc123def456",
-            tokenAddress: "0xToken2Addr",
-            recipient: "0xRecipient123",
-            erc7715: true,
-            isAutoRenewing: true,
-            logo: getLogoUrl("Spotify"),
-            createdAt: new Date(2023, 0, 10).toISOString(),
-            lastPayment: monthAgo.toISOString(),
-            totalSpent: "$159.84",
-            totalPayments: 16,
-            color: "#1DB954",
-          },
-          {
-            id: "sub_3",
-            name: "Amazon Prime",
-            amount: "$14.99",
-            numericAmount: 14.99,
-            frequency: "Monthly",
-            nextPayment: calculateNextPaymentDate("Monthly"),
-            category: "Shopping",
-            paymentMethod: "Credit Card",
-            status: "active",
-            description: "Prime membership with video streaming",
-            erc7715: false,
-            logo: getLogoUrl("Amazon Prime"),
-            createdAt: new Date(2022, 3, 5).toISOString(),
-            lastPayment: monthAgo.toISOString(),
-            totalSpent: "$389.74",
-            totalPayments: 26,
-            color: "#FF9900",
-          }
-        ];
-        
-        setSubscriptions(defaultSubs);
-        localStorage.setItem("subscriptions", JSON.stringify(defaultSubs));
+        setSubscriptions([]);
+        localStorage.setItem("subscriptions", JSON.stringify([]));
       }
     }
   }, []);
-
+  
   // Save subscriptions to localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("subscriptions", JSON.stringify(subscriptions));
     }
   }, [subscriptions]);
-
+  
   // Handle form input changes
   const handleInputChange = (
     field: keyof Subscription,
@@ -410,10 +392,13 @@ export default function SubscriptionManagement() {
         };
       });
     } else {
-      setFormState((prev) => ({ ...prev, [field]: value }));
+      setFormState({
+        ...formState,
+        [field]: value,
+      });
     }
   };
-
+  
   // Reset form
   const resetForm = () => {
     const today = new Date().toISOString().split("T")[0];
@@ -435,46 +420,47 @@ export default function SubscriptionManagement() {
       isAutoRenewing: false,
       color: "#6366F1",
     });
+    setErc7715Error(null);
+    setErc7715Loading(false);
   };
-
+  
   // Validate form
   const validateForm = (): boolean => {
     if (!formState.name.trim()) {
       toast({ title: "Error", description: "Name is required." });
       return false;
     }
-    
     if (!formState.amount || formState.numericAmount <= 0) {
       toast({ title: "Error", description: "Valid amount is required." });
       return false;
     }
-    
     if (!formState.nextPayment) {
       toast({ title: "Error", description: "Next payment date is required." });
       return false;
     }
     
     if (formState.erc7715) {
-      if (!formState.contractAddress || !isAddress(formState.contractAddress)) {
+      if (!formState.contractAddress) {
         toast({
           title: "Error",
-          description: "Valid contract address is required for ERC-7715.",
+          description: "Smart account creation failed. Please try again.",
+          variant: "destructive",
         });
         return false;
       }
-      
-      if (!formState.tokenAddress || !isAddress(formState.tokenAddress)) {
+      if (!formState.tokenAddress) {
         toast({
           title: "Error",
-          description: "Valid token address is required for ERC-7715.",
+          description: "Token address is required.",
+          variant: "destructive",
         });
         return false;
       }
-      
-      if (!formState.recipient || !isAddress(formState.recipient)) {
+      if (!formState.recipient) {
         toast({
           title: "Error",
-          description: "Valid recipient address is required for ERC-7715.",
+          description: "Recipient address is required.",
+          variant: "destructive",
         });
         return false;
       }
@@ -482,80 +468,133 @@ export default function SubscriptionManagement() {
     
     return true;
   };
-
+  
   // Calculate stream rate for ERC-7715
   const calculateStreamRate = () => {
     if (formState.numericAmount <= 0) {
       throw new Error("Amount must be greater than zero");
     }
-    
     const amountInWei = BigInt(Math.floor(formState.numericAmount * 1e18));
     return (amountInWei / BigInt(SECONDS_IN_MONTH)).toString();
   };
-
-  // Request ERC-7715 permissions
-  const requestERC7715Permissions = async () => {
-    try {
-      if (!walletClient) throw new Error("No wallet client found");
-      
-      const delegationWalletClient = walletClient.extend(erc7710WalletActions());
-      
-      const permissions = await delegationWalletClient.request({
-        method: 'wallet_grantPermissions',
-        params: [{
-          permissionType: 'native-token-stream',
-          target: formState.contractAddress,
-          data: {
-            amountPerSecond: calculateStreamRate(),
-            maxAmount: (BigInt(formState.numericAmount * 1e18) * BigInt(12)).toString(),
-            startTime: Math.floor(Date.now() / 1000),
-            expirationTime: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
-          },
-        }],
-      });
-      
-      const delegation = await delegationWalletClient.request({
-        method: 'metamask_createDelegation',
-        params: {
-          sessionAccount: formState.contractAddress,
-          caveats: [
-            { type: 'amount-limit', value: (BigInt(formState.numericAmount * 1e18) * BigInt(12)).toString() },
-            { type: 'time-limit', value: '0x5208' }, // 21 days
-          ],
-        },
-      });
-      
-      return { permissions, delegation };
-    } catch (error) {
+  
+  // Replace the MetaMask session account creation with this updated version
+  const createSmartAccount = async () => {
+    if (!walletClient || !address) {
       toast({
-        title: "Permission Request Failed",
-        description: "Please check your wallet connection and try again.",
+        title: "Error",
+        description: "Wallet connection required",
         variant: "destructive",
       });
-      throw error;
+      throw new Error("Wallet connection required");
+    }
+
+    try {
+      setErc7715Error(null);
+      setErc7715Loading(true);
+
+      // Create session account
+      const sessionAccount = await createSessionAccount({
+        address: address as Address,
+        type: 'json-rpc'
+      });
+
+      // Calculate stream parameters
+      const streamParams = calculateStreamParams({
+        address: sessionAccount.address,
+        amount: formState.numericAmount,
+        duration: SECONDS_IN_MONTH,
+        chainId: chain.id,
+        description: `Payment for ${formState.name} subscription`
+    });
+
+      // Grant streaming permissions
+      const grantedPermissions = await walletClient.getPermissions();
+
+      // Update form state with stream config
+      setFormState(prev => ({
+        ...prev,
+        contractAddress: sessionAccount.address,
+        tokenAddress: "0x0000000000000000000000000000000000000000", // ETH
+        recipient: address,
+        streamConfig: {
+          expiry: streamParams.expiry,
+          amountPerSecond: streamParams.permission.data.amountPerSecond.toString(),
+          maxAmount: streamParams.permission.data.maxAmount.toString(),
+          startTime: streamParams.permission.data.startTime
+        }
+    }));
+
+    return {
+      contractAddress: sessionAccount.address,
+      tokenAddress: "0x0000000000000000000000000000000000000000",
+      recipient: address,
+      permissions: grantedPermissions,
+    };
+
+  } catch (error) {
+    console.error("Smart Account Error:", error);
+    setErc7715Error("Failed to create smart account");
+    setFormState(prev => ({
+      ...prev,
+      contractAddress: "",
+      tokenAddress: "",
+      recipient: ""
+    }));
+    return null;
+  } finally {
+    setErc7715Loading(false);
+  }
+};
+  
+  // Toggle ERC-7715
+  const toggleERC7715 = async (checked: boolean) => {
+    if (!isConnected && checked) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your wallet first to enable smart subscriptions.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (checked) {
+      const result = await createSmartAccount();
+      if (result) {
+        setFormState(prev => ({
+          ...prev,
+          erc7715: true,
+          ...result
+        }));
+      }
+    } else {
+      setFormState(prev => ({
+        ...prev,
+        erc7715: false,
+        contractAddress: "",
+        tokenAddress: "",
+        recipient: "",
+      }));
     }
   };
-
+  
   // Add subscription
   const handleAddSubscription = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
     
     try {
-      let subscriptionData = { ...formState };
-      
-      // Handle ERC-7715 permissions
-      if (formState.erc7715 && isConnected) {
-        const { permissions, delegation } = await requestERC7715Permissions();
-        subscriptionData = {
-          ...subscriptionData,
-          permissionsContext: permissions.context,
-          delegationManager: delegation.delegationManager,
-        };
+      // If using ERC-7715 but missing account details, try to create again
+      if (formState.erc7715 && (!formState.contractAddress || !formState.tokenAddress || !formState.recipient)) {
+        const result = await createSmartAccount();
+        if (!result) {
+          return;
+        }
+        setFormState(prev => ({ ...prev, ...result }));
       }
       
       const newSub: Subscription = {
-        ...subscriptionData,
+        ...formState,
         id: `sub_${uuidv4()}`,
         createdAt: new Date().toISOString(),
         lastPayment: new Date().toISOString(),
@@ -566,153 +605,34 @@ export default function SubscriptionManagement() {
       };
       
       setSubscriptions([...subscriptions, newSub]);
-      toast({ title: "Success", description: "Subscription added." });
+      toast({ title: "Success", description: "Subscription added successfully." });
       setIsAddModalOpen(false);
       resetForm();
     } catch (error) {
-      // Error already handled in requestERC7715Permissions
+      console.error("Add Subscription Error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add subscription. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Edit subscription
-  const handleEditSubscription = async () => {
-    if (!validateForm() || !currentSubscription) return;
-    setIsSubmitting(true);
-    
-    try {
-      let subscriptionData = { ...formState };
-      
-      // Handle ERC-7715 permissions
-      if (formState.erc7715 && isConnected && !currentSubscription.permissionsContext) {
-        const { permissions, delegation } = await requestERC7715Permissions();
-        subscriptionData = {
-          ...subscriptionData,
-          permissionsContext: permissions.context,
-          delegationManager: delegation.delegationManager,
-        };
-      }
-      
-      const updatedSubs = subscriptions.map((sub) =>
-        sub.id === currentSubscription.id
-          ? { ...subscriptionData, logo: getLogoUrl(formState.name) }
-          : sub
-      );
-      
-      setSubscriptions(updatedSubs);
-      toast({ title: "Success", description: "Subscription updated." });
-      setIsEditModalOpen(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update subscription. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      resetForm();
-      setCurrentSubscription(null);
-      setIsSubmitting(false);
-    }
-  };
-
-  // Delete subscription
-  const handleDeleteSubscription = () => {
-    if (!currentSubscription) return;
-    
-    try {
-      setSubscriptions(
-        subscriptions.filter((sub) => sub.id !== currentSubscription.id)
-      );
-      toast({ title: "Success", description: "Subscription deleted." });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete subscription.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleteModalOpen(false);
-      setCurrentSubscription(null);
-    }
-  };
-
-  // Share subscription
-  const handleShareSubscription = (email: string) => {
-    if (!currentSubscription) return;
-    
-    try {
-      const updatedSubs = subscriptions.map((sub) =>
-        sub.id === currentSubscription.id
-          ? {
-              ...sub,
-              sharedWith: [...(sub.sharedWith || []), email],
-              status: "shared" as "shared",
-            }
-          : sub
-      );
-      
-      setSubscriptions(updatedSubs);
-      toast({ title: "Success", description: `Shared with ${email}.` });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to share subscription.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShareModalOpen(false);
-      setCurrentSubscription(null);
-    }
-  };
-
-  // Toggle category filter
-  const toggleCategoryFilter = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const filteredSubscriptions = subscriptions
-    .filter((sub) => {
-      // Filter by tab
-      if (activeTab === "all") return true;
-      if (activeTab === "erc7715") return sub.erc7715;
-      return sub.status === activeTab;
-    })
-    .filter((sub) => {
-      // Filter by search query
-      if (!searchQuery) return true;
-      return (
-        sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sub.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sub.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    })
-    .filter((sub) => {
-      // Filter by selected categories
-      if (selectedCategories.length === 0) return true;
-      return selectedCategories.includes(sub.category);
-    })
-    .sort((a, b) => {
-      // Sort
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "amount") return a.numericAmount - b.numericAmount;
-      if (sortBy === "nextPayment")
-        return new Date(a.nextPayment).getTime() - new Date(b.nextPayment).getTime();
-      if (sortBy === "category") return a.category.localeCompare(b.category);
-      if (sortBy === "created")
-        return new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime();
-      return 0;
-    });
-
+  
+  // Create subscription stats
   const stats = getSubscriptionStats();
-
+  
   return (
     <TooltipProvider>
       <div className="container mx-auto p-6 space-y-8">
+        {/* Educational Content */}
+        <AnimatePresence>
+          {showERC7715Info && (
+            <ERC7715Education onClose={() => setShowERC7715Info(false)} />
+          )}
+        </AnimatePresence>
+        
         {/* Header */}
         <motion.div
           className="flex justify-between items-center"
@@ -813,74 +733,9 @@ export default function SubscriptionManagement() {
               <div className="flex items-center">
                 <Tag className="h-6 w-6 text-indigo-600 mr-2" />
                 <span className="text-2xl font-bold">{stats.topCategory}</span>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
-        
-        {/* Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <Card>
-                <CardHeader>
-                  <CardTitle>Filters</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Search</Label>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search subscriptions..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Categories</Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {categories.map((category) => (
-                          <Badge
-                            key={category}
-                            variant={selectedCategories.includes(category) ? "default" : "outline"}
-                            className="cursor-pointer"
-                            onClick={() => toggleCategoryFilter(category)}
-                          >
-                            {category}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Sort By</Label>
-                      <Select value={sortBy} onValueChange={setSortBy}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sort by" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="name">Name</SelectItem>
-                          <SelectItem value="amount">Amount</SelectItem>
-                          <SelectItem value="nextPayment">Next Payment</SelectItem>
-                          <SelectItem value="category">Category</SelectItem>
-                          <SelectItem value="created">Created</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
         
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -901,186 +756,194 @@ export default function SubscriptionManagement() {
           initial="hidden"
           animate="show"
         >
-          {filteredSubscriptions.map((sub) => {
-            const StatusIcon = statusVariants[sub.status].icon;
-            return (
-              <motion.div key={sub.id} variants={itemVariants}>
-                <Card className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="relative">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={sub.logo}
-                        alt={`${sub.name} logo`}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                      <div>
-                        <CardTitle className="text-lg">{sub.name}</CardTitle>
-                        <CardDescription>{sub.category}</CardDescription>
+          {subscriptions.length === 0 ? (
+            <motion.div variants={itemVariants} className="col-span-full">
+              <Card className="text-center py-12">
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">No subscriptions found</p>
+                  <Button
+                    onClick={() => {
+                      resetForm();
+                      setIsAddModalOpen(true);
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Subscription
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            subscriptions.map((sub) => {
+              const StatusIcon = statusVariants[sub.status].icon;
+              return (
+                <motion.div key={sub.id} variants={itemVariants}>
+                  <Card className="hover:shadow-lg transition-shadow">
+                    <CardHeader className="relative">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={sub.logo}
+                          alt={`${sub.name} logo`}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <CardTitle className="text-lg">{sub.name}</CardTitle>
+                          <CardDescription>{sub.category}</CardDescription>
+                        </div>
                       </div>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => openEditModal(sub)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openShareModal(sub)}>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openStatsModal(sub)}>
-                            <BarChart2 className="mr-2 h-4 w-4" />
-                            Stats
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => openDeleteModal(sub)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Amount</span>
-                        <span className="font-bold">{sub.amount}</span>
+                      <div className="absolute top-4 right-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => {
+                              setCurrentSubscription(sub);
+                              setFormState({...sub});
+                              setIsEditModalOpen(true);
+                            }}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setCurrentSubscription(sub);
+                              setIsShareModalOpen(true);
+                            }}>
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Share
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setCurrentSubscription(sub);
+                              setIsStatsModalOpen(true);
+                            }}>
+                              <BarChart2 className="mr-2 h-4 w-4" />
+                              Stats
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setCurrentSubscription(sub);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Frequency</span>
-                        <span>{sub.frequency}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Next Payment</span>
-                        <span>{formatDate(sub.nextPayment)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status</span>
-                        <Badge
-                          className={`${statusVariants[sub.status].bg} ${statusVariants[sub.status].text}`}
-                        >
-                          <StatusIcon className="mr-1 h-3 w-3" />
-                          {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
-                        </Badge>
-                      </div>
-                      {sub.erc7715 && (
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">ERC-7715</span>
-                          <Badge variant="outline">
-                            <Zap className="mr-1 h-3 w-3" />
-                            Smart Subscription
+                          <span className="text-muted-foreground">Amount</span>
+                          <span className="font-bold">{sub.amount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Frequency</span>
+                          <span>{sub.frequency}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Next Payment</span>
+                          <span>{formatDate(sub.nextPayment)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Status</span>
+                          <Badge
+                            className={`${statusVariants[sub.status].bg} ${statusVariants[sub.status].text}`}
+                          >
+                            <StatusIcon className="mr-1 h-3 w-3" />
+                            {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                           </Badge>
                         </div>
-                      )}
-                    </div>
-                    {expandedSubscription === sub.id && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        className="mt-4 space-y-2 text-sm"
-                      >
-                        <p>
-                          <span className="text-muted-foreground">Description:</span>{" "}
-                          {sub.description || "N/A"}
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground">Total Spent:</span>{" "}
-                          {sub.totalSpent || "N/A"}
-                        </p>
-                        <p>
-                          <span className="text-muted-foreground">Total Payments:</span>{" "}
-                          {sub.totalPayments || 0}
-                        </p>
-                        {sub.remainingPayments && (
-                          <p>
-                            <span className="text-muted-foreground">Remaining Payments:</span>{" "}
-                            {sub.remainingPayments}
-                          </p>
-                        )}
-                        {sub.sharedWith && (
-                          <p>
-                            <span className="text-muted-foreground">Shared With:</span>{" "}
-                            {sub.sharedWith.join(", ")}
-                          </p>
-                        )}
                         {sub.erc7715 && (
-                          <>
-                            <p>
-                              <span className="text-muted-foreground">Contract:</span>{" "}
-                              {sub.contractAddress?.substring(0, 6)}...
-                              {sub.contractAddress?.substring(sub.contractAddress.length - 4)}
-                            </p>
-                            <p>
-                              <span className="text-muted-foreground">Token:</span>{" "}
-                              {sub.tokenAddress?.substring(0, 6)}...
-                              {sub.tokenAddress?.substring(sub.tokenAddress.length - 4)}
-                            </p>
-                            <p>
-                              <span className="text-muted-foreground">Recipient:</span>{" "}
-                              {sub.recipient?.substring(0, 6)}...
-                              {sub.recipient?.substring(sub.recipient.length - 4)}
-                            </p>
-                          </>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">ERC-7715</span>
+                            <Badge variant="outline">
+                              <Zap className="mr-1 h-3 w-3" />
+                              Smart Subscription
+                            </Badge>
+                          </div>
                         )}
-                      </motion.div>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        setExpandedSubscription(
-                          expandedSubscription === sub.id ? null : sub.id
-                        )
-                      }
-                    >
-                      {expandedSubscription === sub.id ? "Show Less" : "Show More"}
-                      <ChevronRight
-                        className={`ml-2 h-4 w-4 transition-transform ${
-                          expandedSubscription === sub.id ? "rotate-90" : ""
-                        }`}
-                      />
-                    </Button>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open("https://example.com ", "_blank")}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Visit Website</TooltipContent>
-                    </Tooltip>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            );
-          })}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setExpandedSubscription(
+                            expandedSubscription === sub.id ? null : sub.id
+                          )
+                        }
+                      >
+                        {expandedSubscription === sub.id ? "Show Less" : "Show More"}
+                        <ChevronRight
+                          className={`ml-2 h-4 w-4 transition-transform ${
+                            expandedSubscription === sub.id ? "rotate-90" : ""
+                          }`}
+                        />
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => window.open("https://example.com ", "_blank")}>
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Visit Website</TooltipContent>
+                      </Tooltip>
+                    </CardFooter>
+                  </Card>
+                  {sub.erc7715 && sub.streamConfig && (
+                    <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-md">
+                      <h4 className="text-sm font-medium mb-2">Stream Configuration</h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Rate</span>
+                          <span>{formatEther(BigInt(sub.streamConfig.amountPerSecond))} ETH/s</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Expiry</span>
+                          <span>{new Date(sub.streamConfig.expiry * 1000).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Max Amount</span>
+                          <span>{formatEther(BigInt(sub.streamConfig.maxAmount))} ETH</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })
+          )}
         </motion.div>
         
         {/* Add Subscription Modal */}
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogContent className="max-w-md">
-            <DialogHeader className="pb-2">
+            <DialogHeader>
               <DialogTitle>Add New Subscription</DialogTitle>
-              <DialogDescription className="text-xs">
+              <DialogDescription>
                 Enter your subscription details below
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
-              {/* Basic Information - First Row */}
+            
+            {erc7715Error && (
+              <Card className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500">
+                <CardContent className="p-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
+                    <p className="text-sm text-red-500">{erc7715Error}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            <div className="grid gap-4 py-4">
+              {/* Name and Amount */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-medium">Name</Label>
@@ -1102,7 +965,7 @@ export default function SubscriptionManagement() {
                 </div>
               </div>
               
-              {/* Second Row */}
+              {/* Frequency and Next Payment */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-medium">Frequency</Label>
@@ -1111,7 +974,7 @@ export default function SubscriptionManagement() {
                     onValueChange={(value) => handleInputChange("frequency", value)}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select frequency" />
                     </SelectTrigger>
                     <SelectContent>
                       {frequencies.map((freq) => (
@@ -1133,7 +996,7 @@ export default function SubscriptionManagement() {
                 </div>
               </div>
               
-              {/* Third Row */}
+              {/* Category and Payment Method */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-medium">Category</Label>
@@ -1142,7 +1005,7 @@ export default function SubscriptionManagement() {
                     onValueChange={(value) => handleInputChange("category", value)}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
@@ -1160,7 +1023,7 @@ export default function SubscriptionManagement() {
                     onValueChange={(value) => handleInputChange("paymentMethod", value)}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
                     <SelectContent>
                       {paymentMethods.map((method) => (
@@ -1173,7 +1036,7 @@ export default function SubscriptionManagement() {
                 </div>
               </div>
               
-              {/* Fourth Row */}
+              {/* Status and Description */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-medium">Status</Label>
@@ -1182,7 +1045,7 @@ export default function SubscriptionManagement() {
                     onValueChange={(value) => handleInputChange("status", value as Subscription["status"])}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select" />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active" className="text-sm">Active</SelectItem>
@@ -1197,7 +1060,7 @@ export default function SubscriptionManagement() {
                   <Input
                     value={formState.description || ""}
                     onChange={(e) => handleInputChange("description", e.target.value)}
-                    placeholder="Optional"
+                    placeholder="Optional description"
                     className="h-8 text-sm"
                   />
                 </div>
@@ -1207,58 +1070,77 @@ export default function SubscriptionManagement() {
               <div className="flex items-center space-x-2 pt-1">
                 <Switch
                   checked={formState.erc7715}
-                  onCheckedChange={(checked) => handleInputChange("erc7715", checked)}
-                  className="scale-90"
+                  onCheckedChange={toggleERC7715}
+                  disabled={erc7715Loading || !isConnected}
                 />
-                <Label className="text-xs font-medium">Enable ERC-7715 (Smart Subscription)</Label>
+                <Label className="text-xs font-medium">
+                  Enable ERC-7715 (Smart Subscription)
+                </Label>
+                {erc7715Loading && (
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                )}
               </div>
               
-              {/* Smart Subscription Fields */}
+              {/* Smart Account Details (only shown when ERC-7715 is enabled) */}
               {formState.erc7715 && (
                 <div className="space-y-3 border rounded-md p-3 bg-slate-50 dark:bg-slate-900">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium">Contract Address</Label>
-                      <Input
-                        value={formState.contractAddress || ""}
-                        onChange={(e) => handleInputChange("contractAddress", e.target.value)}
-                        placeholder="0x..."
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium">Token Address</Label>
-                      <Input
-                        value={formState.tokenAddress || ""}
-                        onChange={(e) => handleInputChange("tokenAddress", e.target.value)}
-                        placeholder="0x..."
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium">Recipient Address</Label>
-                      <Input
-                        value={formState.recipient || ""}
-                        onChange={(e) => handleInputChange("recipient", e.target.value)}
-                        placeholder="0x..."
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2 pt-4">
-                      <Switch
-                        checked={formState.isAutoRenewing}
-                        onCheckedChange={(checked) => handleInputChange("isAutoRenewing", checked)}
-                        className="scale-90"
-                      />
-                      <Label className="text-xs font-medium">Auto-Renew</Label>
-                    </div>
-                  </div>
+                  <div className="text-xs text-muted-foreground">Smart Account Details</div>
+                  
+                  {formState.contractAddress ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs font-medium">Contract</Label>
+                          <Input
+                            value={formState.contractAddress}
+                            readOnly
+                            className="h-8 text-xs bg-slate-100 dark:bg-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium">Token</Label>
+                          <Input
+                            value={formState.tokenAddress}
+                            readOnly
+                            className="h-8 text-xs bg-slate-100 dark:bg-slate-800"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs font-medium">Recipient</Label>
+                          <Input
+                            value={formState.recipient}
+                            readOnly
+                            className="h-8 text-xs bg-slate-100 dark:bg-slate-800"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2 pt-4">
+                          <Switch
+                            checked={formState.isAutoRenewing || false}
+                            onCheckedChange={(checked) => handleInputChange("isAutoRenewing", checked)}
+                            className="scale-90"
+                          />
+                          <Label className="text-xs font-medium">Auto-Renew</Label>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-500">
+                      <CardContent className="p-3 text-center">
+                        <AlertCircle className="h-4 w-4 text-amber-500 mx-auto mb-1" />
+                        <p className="text-sm text-amber-600 dark:text-amber-400">
+                          Connect your wallet to create a smart account
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
-            <DialogFooter className="mt-4 gap-2">
+            
+            <DialogFooter className="mt-4">
               <Button
                 variant="outline"
                 onClick={() => setIsAddModalOpen(false)}
@@ -1268,7 +1150,7 @@ export default function SubscriptionManagement() {
               </Button>
               <Button
                 onClick={handleAddSubscription}
-                disabled={isSubmitting}
+                disabled={isSubmitting || (formState.erc7715 && !formState.contractAddress)}
                 className="h-8 text-xs bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-500 hover:to-yellow-400"
               >
                 {isSubmitting ? (
@@ -1279,323 +1161,6 @@ export default function SubscriptionManagement() {
                 ) : (
                   "Add Subscription"
                 )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Edit Subscription Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Subscription</DialogTitle>
-              <DialogDescription>
-                Update the details for {currentSubscription?.name}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Name</Label>
-                <Input
-                  value={formState.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  placeholder="e.g., Netflix"
-                />
-              </div>
-              <div>
-                <Label>Amount</Label>
-                <Input
-                  value={formState.amount}
-                  onChange={(e) => handleInputChange("amount", e.target.value)}
-                  placeholder="$9.99"
-                />
-              </div>
-              <div>
-                <Label>Frequency</Label>
-                <Select
-                  value={formState.frequency}
-                  onValueChange={(value) => handleInputChange("frequency", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {frequencies.map((freq) => (
-                      <SelectItem key={freq} value={freq}>
-                        {freq}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Next Payment Date</Label>
-                <Input
-                  type="date"
-                  value={formState.nextPayment}
-                  onChange={(e) => handleInputChange("nextPayment", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select
-                  value={formState.category}
-                  onValueChange={(value) => handleInputChange("category", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Payment Method</Label>
-                <Select
-                  value={formState.paymentMethod}
-                  onValueChange={(value) => handleInputChange("paymentMethod", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {method}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => handleInputChange("status", value as Subscription["status"])}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="expiring">Expiring</SelectItem>
-                    <SelectItem value="shared">Shared</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Input
-                  value={formState.description || ""}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formState.erc7715}
-                  onCheckedChange={(checked) => handleInputChange("erc7715", checked)}
-                />
-                <Label>Enable ERC-7715 (Smart Subscription)</Label>
-              </div>
-              {formState.erc7715 && (
-                <>
-                  <div>
-                    <Label>Contract Address</Label>
-                    <Input
-                      value={formState.contractAddress || ""}
-                      onChange={(e) => handleInputChange("contractAddress", e.target.value)}
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Token Address</Label>
-                    <Input
-                      value={formState.tokenAddress || ""}
-                      onChange={(e) => handleInputChange("tokenAddress", e.target.value)}
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div>
-                    <Label>Recipient Address</Label>
-                    <Input
-                      value={formState.recipient || ""}
-                      onChange={(e) => handleInputChange("recipient", e.target.value)}
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={formState.isAutoRenewing}
-                      onCheckedChange={(checked) => handleInputChange("isAutoRenewing", checked)}
-                    />
-                    <Label>Auto-Renew</Label>
-                  </div>
-                </>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEditSubscription}
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Subscription"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Delete Subscription Modal */}
-        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Subscription</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {currentSubscription?.name}? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDeleteSubscription}
-                disabled={isSubmitting}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Share Subscription Modal */}
-        <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Share Subscription</DialogTitle>
-              <DialogDescription>
-                Share {currentSubscription?.name} with others.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Email Address</Label>
-                <Input
-                  placeholder="Enter email address"
-                  onChange={(e) => handleInputChange("sharedWith", e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsShareModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  const emailToShare = 
-                    typeof formState.sharedWith === 'string' 
-                      ? formState.sharedWith 
-                      : "user@example.com";
-                  handleShareSubscription(emailToShare);
-                }}
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sharing...
-                  </>
-                ) : (
-                  "Share"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Stats Modal */}
-        <Dialog open={isStatsModalOpen} onOpenChange={setIsStatsModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Subscription Stats</DialogTitle>
-              <DialogDescription>
-                Statistics for {currentSubscription?.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Spent</span>
-                <span className="font-bold">{currentSubscription?.totalSpent || "N/A"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Payments</span>
-                <span className="font-bold">{currentSubscription?.totalPayments || 0}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Average Payment</span>
-                <span className="font-bold">
-                  $
-                  {currentSubscription?.totalPayments
-                    ? (
-                        parseFloat(currentSubscription.totalSpent?.replace("$", "") || "0") / (currentSubscription.totalPayments || 1)
-                      ).toFixed(2)
-                    : "0.00"}
-                </span>
-              </div>
-              {currentSubscription?.remainingPayments && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Remaining Payments</span>
-                  <span className="font-bold">{currentSubscription.remainingPayments}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Last Payment</span>
-                <span className="font-bold">
-                  {formatDate(currentSubscription?.lastPayment || "")}
-                </span>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsStatsModalOpen(false)}
-              >
-                Close
               </Button>
             </DialogFooter>
           </DialogContent>
