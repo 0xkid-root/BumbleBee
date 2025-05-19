@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth"
 
 type ConnectWalletModalProps = {
   isOpen: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
   onConnect?: () => Promise<void>
 }
 
@@ -36,7 +36,7 @@ const walletOptions = [
   },
 ]
 
-export function ConnectWalletModal({ isOpen, onClose, onConnect }: ConnectWalletModalProps) {
+export function ConnectWalletModal({ isOpen, onOpenChange, onConnect }: ConnectWalletModalProps) {
   const { connectWallet, isConnecting: storeIsConnecting, connectionError, clearConnectionError } = useWalletStore()
   const { connectWallet: authConnectWallet, isLoading: authIsConnecting } = useAuth()
   
@@ -98,7 +98,7 @@ export function ConnectWalletModal({ isOpen, onClose, onConnect }: ConnectWallet
         if (onConnect) {
           onConnect()
         }
-        onClose()
+        onOpenChange(false)
       }, 1000)
       
     } catch (error) {
@@ -116,7 +116,7 @@ export function ConnectWalletModal({ isOpen, onClose, onConnect }: ConnectWallet
     setSelectedWallet(null)
     setConnectionState('idle')
     setErrorMessage(null)
-    onClose()
+    onOpenChange(false)
   }
   
   // Animation variants

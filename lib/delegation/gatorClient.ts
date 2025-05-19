@@ -1,13 +1,39 @@
-import { Address, createPublicClient, http, Hex } from "viem";
+import { 
+  Address, 
+  createPublicClient, 
+  http, 
+  Hex,
+  type SignableMessage
+} from "viem";
 import { lineaSepolia } from "viem/chains";
 import { Network } from "../bumblebee-sdk";
 import { PasskeyCredential } from "../webauthn";
+// We'll define our own call type since viem/actions doesn't export Call
 import {
   Implementation,
   toMetaMaskSmartAccount,
-  createDelegation as createGatorDelegation,
-  DelegationCaveat as GatorDelegationCaveat
+  createDelegation as createGatorDelegation
 } from "@metamask/delegation-toolkit";
+
+// Define our own types for delegation and calls
+export interface GatorDelegationCaveat {
+  type: string;
+  name?: string;
+  value?: any;
+  enforcer?: `0x${string}`;
+  terms?: any;
+  args?: any[] | string;
+}
+
+// Define a simplified Call type for our use case
+export interface Call {
+  to: Address;
+  value?: bigint;
+  data?: string;
+  abi?: readonly unknown[];
+  functionName?: string;
+  args?: readonly unknown[];
+}
 
 // Types
 export interface SessionKey {
@@ -25,6 +51,7 @@ export interface UserOperationParams {
   data?: string;
   sessionKey?: string;
   passkey?: PasskeyCredential;
+  waitForReceipt?: boolean;
 }
 
 export interface DelegationParams {
@@ -141,16 +168,23 @@ export async function createMetaMaskSmartAccount(params: SmartAccountParams): Pr
       initializePublicClient(params.chainId);
     }
 
-    // Create a mock account for development
-    // In a real implementation, this would use the actual wallet account
+    // Create a mock account for development that conforms to the expected interface
     const mockAccount = {
       address: params.address,
-      signMessage: async ({ message }: { message: string }) => {
-        console.log("Signing message:", message);
+      // This signature matches what viem expects for Account.signMessage
+      signMessage: async (params: { message: SignableMessage }) => {
+        // Convert any message format to a string for logging
+        const messageStr = typeof params.message === 'string' 
+          ? params.message 
+          : 'object' in params.message 
+            ? JSON.stringify(params.message.object)
+            : params.message.raw.toString();
+            
+        console.log("Signing message:", messageStr);
         return `0x${Math.random().toString(16).substring(2, 130)}` as Hex;
       },
-      signTypedData: async (data: any) => {
-        console.log("Signing typed data:", data);
+      signTypedData: async (params: any) => {
+        console.log("Signing typed data:", params);
         return `0x${Math.random().toString(16).substring(2, 130)}` as Hex;
       }
     };
@@ -187,13 +221,40 @@ export async function createDelegation(params: DelegationParams): Promise<any> {
   try {
     // Create the delegation
     const delegateAddress = params.delegate || "0x2FcB88EC2359fA635566E66415D31dD381CF5585";
-    const caveats = params.caveats || [];
+    
+    // Transform our caveats to match the expected format
+    const formattedCaveats = (params.caveats || []).map(caveat => {
+      // Ensure args is a properly formatted hex string
+      let argsValue: `0x${string}` = "0x";
+      if (caveat.args) {
+        if (typeof caveat.args === 'string' && caveat.args.startsWith('0x')) {
+          argsValue = caveat.args as `0x${string}`;
+        } else if (Array.isArray(caveat.args)) {
+          // If it's an array, convert to a hex string (empty for now)
+          argsValue = "0x";
+        }
+      }
+      
+      // Ensure terms is a properly formatted value
+      let termsValue: any = "0x";
+      if (caveat.terms) {
+        termsValue = caveat.terms;
+      } else if (caveat.value) {
+        termsValue = caveat.value;
+      }
+      
+      return {
+        enforcer: caveat.enforcer || "0x0000000000000000000000000000000000000000" as `0x${string}`,
+        terms: termsValue,
+        args: argsValue
+      };
+    });
 
     console.log("Creating delegation to:", delegateAddress);
     const delegation = createGatorDelegation({
       to: delegateAddress as Address,
       from: smartAccount.address,
-      caveats: caveats
+      caveats: formattedCaveats
     });
 
     // Sign the delegation
@@ -216,7 +277,7 @@ export async function createDelegation(params: DelegationParams): Promise<any> {
 /**
  * Send a user operation through the bundler
  */
-export async function sendUserOperation(params: UserOperationParams): Promise<string> {
+export async function sendUserOperation(params: UserOperationParams): Promise<{ hash: string, transactionHash?: string }> {
   if (!bundlerConnected) {
     await connectBundler(params.sender, 11155111); // Default to Sepolia
   }
@@ -224,17 +285,58 @@ export async function sendUserOperation(params: UserOperationParams): Promise<st
   console.log("Sending user operation:", params);
   
   try {
-    // In a real implementation, this would use the smart account to send a user operation
-    // For now, we'll simulate it
+    // Import the bundler and pimlicoClient from the services
+    const { bundler, pimlicoClient } = await import('../services/bundler');
     
-    // Simulate transaction hash
-    const userOpHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+    if (!smartAccount) {
+      throw new Error("Smart Account not created. Call createMetaMaskSmartAccount first.");
+    }
     
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Get the gas price from Pimlico
+    const { fast: fee } = await pimlicoClient.getUserOperationGasPrice();
     
-    console.log("User operation sent with hash:", userOpHash);
-    return userOpHash;
+    // Import necessary types and functions
+    const { encodeFunctionData, parseAbi } = await import('viem');
+    
+    // Define a properly typed calls array that matches what the bundler expects
+    const calls: Call[] = [];
+    
+    // If target and data are provided, add them to the calls
+    if (params.target) {
+      // For ETH transfers, we create a properly formatted call object
+      // that matches the Call type from viem/actions
+      calls.push({
+        to: params.target,
+        value: params.value || BigInt(0),
+        // We need to provide an ABI and functionName for the call to be valid
+        abi: parseAbi(['function transfer()']),
+        functionName: 'transfer',
+        // Empty args array for a simple transfer
+        args: []
+      });
+    }
+    
+    // Send the user operation with the properly typed calls array
+    // We need to use type assertion here because the bundler expects a specific format
+    const userOperationHash = await bundler.sendUserOperation({
+      account: smartAccount,
+      calls: calls as any, // Type assertion is necessary due to complex type constraints
+      ...fee
+    });
+    
+    console.log("User operation sent with hash:", userOperationHash);
+    
+    // Wait for the receipt
+    const { receipt } = await bundler.waitForUserOperationReceipt({
+      hash: userOperationHash
+    });
+    
+    console.log("Transaction confirmed with hash:", receipt.transactionHash);
+    
+    return {
+      hash: userOperationHash,
+      transactionHash: receipt.transactionHash
+    };
   } catch (error) {
     console.error("Failed to send user operation:", error);
     throw error;

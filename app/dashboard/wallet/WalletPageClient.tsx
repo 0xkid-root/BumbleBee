@@ -1,12 +1,11 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAccount, useChainId } from "wagmi";
 import { useAuth } from "@/hooks/useAuth";
 import { useClipboard } from "@/lib/hooks/use-clipboard";
 import { toast } from "sonner";
-import {createMetaMaskSmartAccount} from "@lib/delegation/metaMaskSmartAccount";
 import {
   sendUserOperation,
   createSessionKey,
@@ -16,6 +15,7 @@ import {
   getEntryPointContract,
   SessionKey,
 } from "@/lib/delegation/gatorClient";
+import { createMetaMaskSmartAccount } from "@/lib/delegation/metaMaskSmartAccount";
 import {
   PasskeyCredential,
   registerPasskey as createPasskeyCredential,
@@ -61,14 +61,17 @@ import {
   ArrowUpDown,
   Check,
 } from "lucide-react";
+import { PasskeyDialog } from "./components/PasskeyDialog";
 
 // Types
 import type { Asset } from "@/lib/store/use-wallet-store";
+import { useWalletStore } from "@/lib/store/use-wallet-store";
 import {
   Network,
   PermissionType,
   Caveat,
 } from "@/lib/bumblebee-sdk";
+import { calculateExpiryFromCaveats } from "./utils/delegation";
 import { CaveatType, DelegationAccount as ComponentDelegationAccount } from "@/components/wallet/delegation-types";
 
 // Define types with proper null handling
@@ -80,11 +83,13 @@ interface SmartAccount {
   balance: number;
   createdAt: Date;
   status: "Active" | "Pending" | "Inactive";
+  implementation?: string;
 }
 
 interface DelegationResult {
   delegation: { id: string };
   smartAccount: { address: string };
+  implementation: string;
 }
 
 interface DelegationAccount extends SmartAccount {
@@ -96,6 +101,15 @@ interface DelegationAccount extends SmartAccount {
   sessionKey: SessionKey;
   passkey?: PasskeyCredential | null; // Allow null values
   revokedAt?: Date;
+  implementation: string;
+  signers?: string[];
+  threshold?: number;
+}
+
+// Delegation implementation types
+enum DelegationImplementation {
+  Hybrid = "Hybrid",
+  Multisig = "Multisig"
 }
 
 interface WalletError {
@@ -105,7 +119,7 @@ interface WalletError {
   retryable: boolean;
 }
 
-type ModalState = "none" | "caveats" | "accountDetails" | "sendAsset" | "receiveAsset" | "swapAssets" | "passkey";
+type ModalState = "none" | "caveats" | "accountDetails" | "sendAsset" | "receiveAsset" | "swapAssets" | "passkey" | "delegationType";
 
 const LoadingOverlay = ({ message, error }: { message: string; error: string | null }) => {
   return (
@@ -160,6 +174,12 @@ export default function WalletPageClient(): React.ReactElement {
   const { address, isConnected } = useAccount();
   const { user } = useAuth();
   const { copy, hasCopied } = useClipboard();
+  
+  // Delegation implementation state
+  const [delegationImplementation, setDelegationImplementation] = useState<DelegationImplementation>(DelegationImplementation.Hybrid);
+  const [signers, setSigners] = useState<`0x${string}`[]>([]);
+  const [threshold, setThreshold] = useState<number>(1);
+  const [isDelegationTypeModalOpen, setIsDelegationTypeModalOpen] = useState(false);
   
   // State
   const [isLoading, setIsLoading] = useState(false);
@@ -303,70 +323,155 @@ export default function WalletPageClient(): React.ReactElement {
     passkey?: PasskeyCredential | null;
     caveats: DelegationCaveat[];
   }): Promise<DelegationResult> => {
-    if (!address) {
-      toast.error("Wallet address not found. Please connect your wallet.");
-      return {
-        delegation: { id: "" },
-        smartAccount: { address: "" }
-      };
+    if (!address || !isConnected) {
+      toast.error("Please connect your wallet first");
+      throw new Error("Wallet not connected");
     }
-    
+
     setIsLoading(true);
-    handleLoading(true, "Creating delegator account...", null);
-    
+    handleLoading(true, "Creating delegator account...");
+
     try {
-      // Create delegation with smart account
-      // In a real implementation, this would call the actual delegation toolkit
-      // For now, return a mock response
-      const mockDelegation = {
-        delegation: { id: `del-${Math.random().toString(36).substring(2, 9)}` },
-        smartAccount: { address: `0x${Math.random().toString(16).substring(2, 10)}` }
-      };
-      
-      // Create account object for UI
+      // First create a session key if not exists
+      const sessionKeyData = params.sessionKey ? { publicKey: params.sessionKey } : await createSessionKeyHandler();
+      if (!sessionKeyData) throw new Error("Failed to create session key");
+
+      // Create the smart account using MetaMask's delegation toolkit
+      const smartAccountResult = await createMetaMaskSmartAccount({
+        ownerAddress: address as `0x${string}`,
+        deploySalt: `0x${crypto.randomUUID().replace(/-/g, '')}` as `0x${string}`, // Unique salt for each account
+        implementation: delegationImplementation,
+        signers: delegationImplementation === DelegationImplementation.Multisig ? signers : undefined,
+        threshold: delegationImplementation === DelegationImplementation.Multisig ? threshold : undefined
+      });
+
+      if (!smartAccountResult?.address) {
+        throw new Error("Failed to create smart account");
+      }
+
+      // Generate unique IDs
+      const delegationId = `del_${crypto.randomUUID()}`;
+      const accountId = `acc_${crypto.randomUUID()}`;
+
+      // Create the delegation account object
       const newAccount: DelegationAccount = {
-        delegationId: mockDelegation.delegation.id,
-        delegationType: PermissionType.Custom,
-        caveats: [],
-        delegatedTo: "BumbleBee AI Assistant",
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        sessionKey: { 
-          id: `sk-${Math.random().toString(36).substring(2, 15)}`,
-          publicKey: params.sessionKey,
-          privateKey: "mock-private-key",
-          createdAt: new Date(),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-        },
-        passkey: params.passkey || null,
-        address: mockDelegation.smartAccount.address,
+        id: accountId,
+        delegationId,
+        address: smartAccountResult.address,
         name: "AI Assistant Delegation",
-        type: "Delegate",
+        type: "Smart",
         balance: 0,
         createdAt: new Date(),
         status: "Active",
-        id: `da-${Math.random().toString(36).substring(2, 9)}`,
+        implementation: delegationImplementation,
+        delegationType: PermissionType.Custom,
+        caveats: params.caveats,
+        delegatedTo: params.delegate,
+        expiresAt: calculateExpiryFromCaveats(params.caveats),
+        sessionKey: 'id' in sessionKeyData && 'privateKey' in sessionKeyData ? 
+          sessionKeyData as SessionKey : 
+          {
+            id: `sk-${crypto.randomUUID()}`,
+            publicKey: sessionKeyData.publicKey,
+            privateKey: `0x${Math.random().toString(16).substring(2, 66)}`,
+            createdAt: new Date()
+          },
+        passkey: params.passkey,
+        signers: delegationImplementation === DelegationImplementation.Multisig ? signers : undefined,
+        threshold: delegationImplementation === DelegationImplementation.Multisig ? threshold : undefined
       };
-      
-      setDelegationAccounts((prev) => [...prev, newAccount]);
+
+      // Update state
+      setDelegationAccounts(prev => [...prev, newAccount]);
       setSelectedAccount(newAccount);
-      setDelegationLifecycle((prev) => ({ ...prev, created: true }));
-      toast.success("Delegator account created successfully");
+      setDelegationLifecycle(prev => ({ ...prev, created: true }));
       setCurrentStep(2);
-      
-      return mockDelegation;
+
+      // Show success message
+      toast.success("Delegator account created successfully");
+
+      return {
+        delegation: { id: delegationId },
+        smartAccount: { address: smartAccountResult.address },
+        implementation: delegationImplementation
+      };
+
     } catch (error: any) {
       console.error("Failed to create delegator account:", error);
-      toast.error(error.message || "Failed to create delegator account");
-      setDelegationError(error.message || "Failed to create delegator account");
-      return {
-        delegation: { id: "" },
-        smartAccount: { address: "" }
-      };
+      const errorMessage = error.message || "Failed to create delegator account";
+      toast.error(errorMessage);
+      setDelegationError(errorMessage);
+      throw error;
     } finally {
       setIsLoading(false);
       handleLoading(false);
     }
-  }, [address, handleLoading]);
+  }, [
+    address,
+    isConnected,
+    chainId,
+    delegationImplementation,
+    signers,
+    threshold,
+    createSessionKeyHandler,
+    handleLoading
+  ]);
+
+  // Handle creating a new account
+  const handleCreateAccount = useCallback(async () => {
+    if (!address || !isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    try {
+      // Create session key if not exists
+      let sessionKeyData = sessionKey;
+      if (!sessionKeyData) {
+        sessionKeyData = await createSessionKeyHandler();
+      }
+
+      // Default caveats
+      const defaultCaveats: DelegationCaveat[] = [
+        {
+          id: `caveat-${Date.now()}-1`,
+          type: CaveatType.MaxAmount,
+          value: "0.1",
+          description: "Maximum transaction value of 0.1 ETH"
+        },
+        {
+          id: `caveat-${Date.now()}-2`,
+          type: CaveatType.TimeLimit,
+          value: "86400", // 24 hours in seconds
+          description: "Time limit of 24 hours"
+        }
+      ];
+
+      // Create delegator account
+      await createDelegatorAccount({
+        delegator: address as `0x${string}`,
+        delegate: "0x0000000000000000000000000000000000000000" as `0x${string}`, // Replace with actual AI assistant address
+        sessionKey: 'publicKey' in sessionKeyData ? sessionKeyData.publicKey : '',
+        passkey,
+        caveats: defaultCaveats
+      });
+
+      // Open caveats modal for further configuration
+      setActiveModal("caveats");
+
+    } catch (error: any) {
+      console.error("Failed to create account:", error);
+      toast.error(error.message || "Failed to create account");
+    }
+  }, [
+    address,
+    isConnected,
+    sessionKey,
+    passkey,
+    createSessionKeyHandler,
+    createDelegatorAccount,
+    setActiveModal
+  ]);
 
   // Grant permissions with caveats
   const grantPermissions = useCallback(
@@ -614,6 +719,56 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     connectWallet();
   }, [walletError, connectWallet]);
 
+  // Open delegation type selection modal
+  const openDelegationTypeModal = useCallback(() => {
+    setIsDelegationTypeModalOpen(true);
+  }, []);
+
+  // Handle delegation type selection
+  const handleDelegationTypeSelect = useCallback((type: DelegationImplementation) => {
+    setDelegationImplementation(type);
+    setIsDelegationTypeModalOpen(false);
+    
+    // If Multisig is selected, open caveats modal to configure signers
+    if (type === DelegationImplementation.Multisig) {
+      // Default to current address as first signer
+      if (address && signers.length === 0) {
+        setSigners([address as `0x${string}`]);
+      }
+    }
+    
+    // Create session key if not already created
+    if (!sessionKey) {
+      createSessionKeyHandler().catch(console.error);
+    }
+    
+    // Open caveats modal after selecting delegation type
+    setActiveModal("caveats");
+  }, [address, signers, sessionKey, createSessionKeyHandler]);
+  
+  // Add a signer to the multisig account
+  const addSigner = useCallback((signerAddress: string) => {
+    if (!signerAddress || !signerAddress.startsWith('0x')) return;
+    
+    setSigners(prev => {
+      if (prev.includes(signerAddress as `0x${string}`)) return prev;
+      return [...prev, signerAddress as `0x${string}`];
+    });
+  }, []);
+  
+  // Remove a signer from the multisig account
+  const removeSigner = useCallback((signerAddress: string) => {
+    setSigners(prev => prev.filter(addr => addr !== signerAddress));
+    
+    // Adjust threshold if needed
+    setThreshold(prev => Math.min(prev, signers.length - 1 || 1));
+  }, [signers.length]);
+  
+  // Update threshold for multisig account
+  const updateThreshold = useCallback((value: number) => {
+    setThreshold(Math.min(value, signers.length));
+  }, [signers.length]);
+  
   // UI Components
   const StepContent = () => {
     const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState<boolean>(false);
@@ -853,18 +1008,9 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
                 transition={{ delay: 0.3 }}
               >
                 <Button
-                  onClick={async () => {
-                    if (!address) return;
-                    await createDelegatorAccount({
-                      delegator: address as `0x${string}`,
-                      delegate: "0x2FcB88EC2359fA635566E66415D31dD381CF5585",
-                      sessionKey: sessionKey?.publicKey || "",
-                      passkey: passkey,
-                      caveats: []
-                    });
-                  }}
+                  onClick={handleCreateAccount}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
-                  disabled={isLoading}
+                  disabled={isLoading || !isConnected}
                 >
                   {isLoading ? (
                     <>
@@ -874,7 +1020,7 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4 mr-2" />
-                      Create Delegator hiii Account
+                      Create Delegator Account
                     </>
                   )}
                 </Button>
@@ -1106,26 +1252,44 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     }
   };
 
+  // Update modal state handling
+  const handleModalChange = useCallback((modalType: ModalState) => {
+    setActiveModal(modalType);
+  }, []);
+
+  // Update DelegationCaveatsModal usage
+  const handleCaveatsSave = useCallback((caveats: DelegationCaveat[]) => {
+    if (selectedAccount) {
+      grantPermissions(caveats);
+      handleModalChange("none");
+    }
+  }, [selectedAccount, grantPermissions]);
+
+  // Update LoadingOverlay to prevent re-renders
+  const loadingOverlay = useMemo(() => {
+    if (!isLoading) return null;
+    return (
+      <LoadingOverlay 
+        message={loadingMessage || "Processing blockchain transaction..."} 
+        error={loadingError || delegationError}
+      />
+    );
+  }, [isLoading, loadingMessage, loadingError, delegationError]);
+
+  // Update dialog state handling
+  const handleDialogChange = useCallback((open: boolean, modalType: ModalState) => {
+    if (!open) {
+      handleModalChange("none");
+    }
+  }, [handleModalChange]);
+
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 relative bg-gradient-to-b from-blue-50 to-white min-h-screen">
-      {/* Honeycomb Background Pattern */}
-      <div className="absolute inset-0 z-0 opacity-10">
-        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-          <pattern id="honeycomb" width="56" height="100" patternUnits="userSpaceOnUse">
-            <path d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100" stroke="#3b82f6" fill="none" />
-          </pattern>
-          <rect width="100%" height="100%" fill="url(#honeycomb)" />
-        </svg>
-      </div>
+    <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 relative">
+      
       
       {/* Global Loading Overlay */}
       <AnimatePresence>
-        {isLoading && (
-          <LoadingOverlay 
-            message={loadingMessage || "Processing blockchain transaction..."} 
-            error={loadingError || delegationError}
-          />
-        )}
+        {loadingOverlay}
       </AnimatePresence>
       
       {/* Main Content */}
@@ -1178,85 +1342,90 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
         {/* Modals */}
         <DelegationCaveatsModal
           isOpen={activeModal === "caveats"}
-          onClose={() => setActiveModal("none")}
-          onSave={(caveats) => {
-            if (selectedAccount) {
-              grantPermissions(caveats);
-            }
-          }}
+          onOpenChange={(open: boolean) => handleDialogChange(open, "caveats")}
+          onSave={handleCaveatsSave}
         />
         <AccountDetailsModal
           isOpen={activeModal === "accountDetails"}
-          onClose={() => setActiveModal("none")}
+          onOpenChange={(open: boolean) => handleDialogChange(open, "accountDetails")}
           account={selectedAccount}
         />
         <SendAssetModal
           isOpen={activeModal === "sendAsset"}
-          onClose={() => setActiveModal("none")}
+          onOpenChange={(open: boolean) => handleDialogChange(open, "sendAsset")}
           asset={null}
         />
         <ReceiveAssetModal
           isOpen={activeModal === "receiveAsset"}
-          onClose={() => setActiveModal("none")}
+          onOpenChange={(open: boolean) => handleDialogChange(open, "receiveAsset")}
           asset={null}
           walletAddress={address || "0x0"}
         />
         <SwapAssetsModal
           isOpen={activeModal === "swapAssets"}
-          onClose={() => setActiveModal("none")}
+          onOpenChange={(open: boolean) => handleDialogChange(open, "swapAssets")}
           fromAsset={null}
         />
         
-        {/* Passkey Registration Modal */}
-        <Dialog open={activeModal === "passkey"} onOpenChange={(open) => setActiveModal(open ? "passkey" : "none")}>
-          <DialogContent className="sm:max-w-md rounded-xl bg-gradient-to-b from-gray-900 to-black border-white/10">
+        {/* Update Passkey Dialog */}
+        <PasskeyDialog
+          isOpen={activeModal === "passkey"}
+          onClose={() => handleModalChange("none")}
+          onRegister={registerPasskey}
+          isLoading={isLoading}
+          isRegistered={isPasskeyRegistered}
+        />
+        
+        {/* Error Dialog */}
+        <Dialog 
+          open={isErrorDialogOpen} 
+          onOpenChange={(open) => setIsErrorDialogOpen(open)}
+        >
+          <DialogContent className="sm:max-w-md rounded-xl bg-gradient-to-b from-red-900 to-black border-red-500/20">
             <DialogHeader>
-              <DialogTitle className="text-white">Register Passkey</DialogTitle>
+              <DialogTitle className="text-white flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2 text-red-500" />
+                Wallet Error
+              </DialogTitle>
               <DialogDescription className="text-gray-300">
-                Register a passkey for enhanced security on your delegation account
+                {walletError?.message || "An error occurred with your wallet connection"}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-sm text-blue-300">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-sm text-red-300">
                 <p className="mb-2">
-                  <strong>What is a passkey?</strong>
+                  <strong>Error Code:</strong> {walletError?.code || "UNKNOWN_ERROR"}
                 </p>
                 <p className="mb-2">
-                  A passkey is a secure hardware-based authentication method that uses biometric data or device credentials to verify your identity.
+                  <strong>Time:</strong> {walletError?.timestamp?.toLocaleTimeString() || new Date().toLocaleTimeString()}
                 </p>
-                <p>
-                  Registering a passkey adds an additional layer of security to your delegation account.
-                </p>
-              </div>
-              <Button
-                onClick={registerPasskey}
-                disabled={isLoading || isPasskeyRegistered}
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    Registering...
-                  </>
-                ) : isPasskeyRegistered ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Passkey Registered
-                  </>
-                ) : (
-                  <>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Register Passkey
-                  </>
+                {walletError?.retryable && (
+                  <p>
+                    This error is temporary. You can try reconnecting your wallet.
+                  </p>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setActiveModal("none")}
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
+              </div>
+              <div className="flex justify-end space-x-2">
+                {walletError?.retryable && (
+                  <Button
+                    onClick={() => {
+                      setIsErrorDialogOpen(false);
+                      // Trigger reconnection logic here if needed
+                    }}
+                    className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Connection
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setIsErrorDialogOpen(false)}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -1264,3 +1433,5 @@ const connectionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     </div>
   );
 }
+
+// This function will be defined inside the component

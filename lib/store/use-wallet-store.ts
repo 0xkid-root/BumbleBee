@@ -13,9 +13,23 @@ export interface Asset {
   logo: string;
 }
 
+// Define SmartAccount interface
+export interface SmartAccount {
+  id: string;
+  address: string;
+  name: string;
+  type: "EOA" | "Smart" | "Delegate";
+  balance: number;
+  createdAt: Date;
+  status: "Active" | "Pending" | "Inactive";
+  ownerAddress?: string;
+  implementation?: string;
+}
+
 // Base state interfaces
 interface WalletState {
   assets: Asset[];
+  smartAccounts: SmartAccount[];
   isConnected: boolean;
   address: string | null;
   totalBalance: number;
@@ -35,6 +49,9 @@ interface WalletActions {
   swapAssets: (fromAssetId: string, toAssetId: string, amount: number) => Promise<boolean>;
   clearConnectionError: () => void;
   setShowConnectModal: (show: boolean) => void;
+  addSmartAccount: (account: SmartAccount) => void;
+  removeSmartAccount: (accountId: string) => void;
+  updateSmartAccountStatus: (accountId: string, status: "Active" | "Pending" | "Inactive") => void;
 }
 
 type WalletStore = WalletState & WalletActions;
@@ -92,6 +109,7 @@ export const useWalletStore = create<WalletStore>()(
     (set, get) => ({
       // Initial state
       assets: [],
+      smartAccounts: [],
       isConnected: false,
       address: null,
       totalBalance: 0,
@@ -286,6 +304,27 @@ export const useWalletStore = create<WalletStore>()(
 
       setShowConnectModal: (show: boolean) => {
         set({ showConnectModal: show });
+      },
+
+      // Smart account management
+      addSmartAccount: (account: SmartAccount) => {
+        set((state) => ({
+          smartAccounts: [...state.smartAccounts, account]
+        }));
+      },
+
+      removeSmartAccount: (accountId: string) => {
+        set((state) => ({
+          smartAccounts: state.smartAccounts.filter(account => account.id !== accountId)
+        }));
+      },
+
+      updateSmartAccountStatus: (accountId: string, status: "Active" | "Pending" | "Inactive") => {
+        set((state) => ({
+          smartAccounts: state.smartAccounts.map(account => 
+            account.id === accountId ? { ...account, status } : account
+          )
+        }));
       },
     }),
     {

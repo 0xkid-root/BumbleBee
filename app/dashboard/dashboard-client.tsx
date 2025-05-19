@@ -3,6 +3,7 @@
 import React from "react"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/hooks/useAuth"
 import { motion } from "framer-motion"
 import {
   Wallet,
@@ -33,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -817,6 +819,18 @@ const AiInsights = () => {
 // Main Dashboard Component
 export function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true)
+  const { user, isConnected } = useAuth()
+
+  // Check authentication and redirect if not authenticated
+  useEffect(() => {
+    if (!isConnected && typeof window !== 'undefined') {
+      // Redirect to home page if not connected
+      window.location.href = '/';
+      toast.error("Authentication required", {
+        description: "Please connect your wallet to access the dashboard."
+      });
+    }
+  }, [isConnected]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -829,7 +843,7 @@ export function DashboardClient() {
     <div>
       <header className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Welcome back, User!</h1>
+          <h1 className="text-2xl font-bold">Welcome onboard! <span className="text-primary">{user?.name || 'User'}</span></h1>
           <p className="text-muted-foreground">Here's what's happening with your portfolio today.</p>
         </div>
         <div className="flex items-center space-x-4">
@@ -839,12 +853,12 @@ export function DashboardClient() {
               <Button variant="ghost" size="icon">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/avatar.png" alt="User avatar" />
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarFallback>{user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.name || 'My Account'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />

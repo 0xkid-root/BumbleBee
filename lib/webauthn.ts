@@ -106,6 +106,9 @@ export async function registerPasskey(
     // Generate a random user ID
     const userId = new Uint8Array(16);
     window.crypto.getRandomValues(userId);
+    
+    // Convert Uint8Array to ArrayBuffer
+    const userIdBuffer = userId.buffer;
 
     // Create registration options
     const publicKeyCredentialCreationOptions: PasskeyOptions = {
@@ -115,7 +118,7 @@ export async function registerPasskey(
         id: window.location.hostname,
       },
       user: {
-        id: arrayBufferToBase64(userId),
+        id: arrayBufferToBase64(userIdBuffer),
         name: username,
         displayName: displayName,
       },

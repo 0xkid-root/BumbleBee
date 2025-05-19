@@ -8,7 +8,7 @@ import { Address } from 'viem';
 
 interface AccountDetailsModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   account: {
     id: string;
     address: string | Address;
@@ -20,7 +20,7 @@ interface AccountDetailsModalProps {
 
 export function AccountDetailsModal({ 
   isOpen, 
-  onClose, 
+  onOpenChange, 
   account 
 }: AccountDetailsModalProps): React.ReactElement {
   const { copy, hasCopied } = useClipboard();
@@ -36,7 +36,7 @@ export function AccountDetailsModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Account Details</DialogTitle>

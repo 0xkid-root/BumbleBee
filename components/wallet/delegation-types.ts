@@ -24,12 +24,13 @@ export enum PermissionType {
 
 // Caveat types for delegation
 export enum CaveatType {
-  MaxAmount = "MaxAmount",
-  TimeLimit = "TimeLimit",
-  WhitelistedAddresses = "WhitelistedAddresses",
-  BlacklistedAddresses = "BlacklistedAddresses",
-  MaxTransactionsPerDay = "MaxTransactionsPerDay",
-  RequireConfirmation = "RequireConfirmation"
+  TimeLimit = 'TimeLimit',
+  MaxAmount = 'MaxAmount',
+  AssetType = 'AssetType',
+  WhitelistedAddresses = 'WhitelistedAddresses',
+  MaxTransactionsPerDay = 'MaxTransactionsPerDay',
+  BlacklistedAddresses = 'BlacklistedAddresses',
+  RequireConfirmation = 'RequireConfirmation'
 }
 
 // Interface for delegation caveats

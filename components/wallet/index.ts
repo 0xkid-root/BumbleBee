@@ -51,13 +51,13 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
 // Mock component for AccountDetailsModal until it's implemented
 interface AccountDetailsModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   account: any;
 }
 
 export const AccountDetailsModal: React.FC<AccountDetailsModalProps> = ({
   isOpen,
-  onClose,
+  onOpenChange,
   account
 }) => {
   return React.createElement(
@@ -76,7 +76,7 @@ export const AccountDetailsModal: React.FC<AccountDetailsModalProps> = ({
         React.createElement(
           'button',
           { 
-            onClick: onClose,
+            onClick: () => onOpenChange(false),
             className: "mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600",
             key: "close-btn"
           },

@@ -8,7 +8,7 @@ export type Transaction = {
   amount: number
   value: number
   timestamp: number
-  status: "pending" | "completed" | "failed"
+  status: "pending" | "completed" | "confirmed" | "failed"
   from: string
   to: string
   fee: number
@@ -29,7 +29,8 @@ type TransactionState = {
 
 type TransactionActions = {
   fetchTransactions: () => Promise<void>
-  addTransaction: (transaction: Omit<Transaction, "id" | "timestamp" | "hash">) => Promise<void>
+  addTransaction: (transaction: Partial<Transaction> & Pick<Transaction, "type" | "assetSymbol" | "amount" | "value" | "from" | "to" | "status" | "fee">) => Promise<string>
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>
   setFilters: (filters: Partial<TransactionState["filters"]>) => void
   clearFilters: () => void
   getFilteredTransactions: () => Transaction[]
@@ -134,19 +135,55 @@ export const useTransactionStore = create<TransactionState & TransactionActions>
           // Simulate API call
           await new Promise((resolve) => setTimeout(resolve, 1000))
 
+          // If transaction has an ID, it's an update to an existing transaction
+          const id = transaction.id || Math.random().toString(36).substring(2, 9);
+          const timestamp = transaction.timestamp || Date.now();
+          const hash = transaction.hash || `0x${Math.random().toString(36).substring(2, 10)}...${Math.random().toString(36).substring(2, 6)}`;
+
           const newTransaction: Transaction = {
             ...transaction,
-            id: Math.random().toString(36).substring(2, 9),
-            timestamp: Date.now(),
-            hash: `0x${Math.random().toString(36).substring(2, 10)}...${Math.random().toString(36).substring(2, 6)}`,
+            id,
+            timestamp,
+            hash,
+          } as Transaction;
+
+          // If it's an update, replace the existing transaction
+          if (transaction.id) {
+            set((state) => ({
+              transactions: state.transactions.map(tx => 
+                tx.id === transaction.id ? newTransaction : tx
+              ),
+              isLoading: false,
+            }));
+          } else {
+            // Otherwise add as a new transaction
+            set((state) => ({
+              transactions: [newTransaction, ...state.transactions],
+              isLoading: false,
+            }));
           }
 
+          return id;
+        } catch (error) {
+          set({ error: "Failed to add transaction", isLoading: false })
+          return "";
+        }
+      },
+
+      updateTransaction: async (id, updates) => {
+        set({ isLoading: true, error: null })
+        try {
+          // Simulate API call
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+
           set((state) => ({
-            transactions: [newTransaction, ...state.transactions],
+            transactions: state.transactions.map(tx => 
+              tx.id === id ? { ...tx, ...updates } : tx
+            ),
             isLoading: false,
           }))
         } catch (error) {
-          set({ error: "Failed to add transaction", isLoading: false })
+          set({ error: "Failed to update transaction", isLoading: false })
         }
       },
 

@@ -17,14 +17,17 @@ import { useTransactionStore } from "@/lib/store/use-transaction-store"
 import { Loader2, AlertCircle } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
+import { sendUserOperation } from "@/lib/delegation/gatorClient"
+import { useAccount } from "wagmi"
+import { parseEther } from "viem"
 
 export type SendAssetModalProps = {
   isOpen: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
   asset: Asset | null
 }
 
-export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) {
+export function SendAssetModal({ isOpen, onOpenChange, asset }: SendAssetModalProps) {
   const [recipient, setRecipient] = useState("")
   const [amount, setAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -32,13 +35,19 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
 
   const { addTransaction } = useTransactionStore()
   const { toast } = useToast()
+  const { address } = useAccount()
 
   const handleSend = async () => {
-    if (!asset) return
+    if (!asset || !address) return
 
     // Validate inputs
     if (!recipient) {
       setError("Recipient address is required")
+      return
+    }
+
+    if (!recipient.startsWith("0x") || recipient.length !== 42) {
+      setError("Invalid recipient address format")
       return
     }
 
@@ -56,16 +65,12 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
     setError(null)
 
     try {
-      // Simulate transaction processing
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Add transaction to store
-      // Create a transaction object
-      await addTransaction({
+      // Add transaction to store as pending
+      const txId = await addTransaction({
         type: "send",
         status: "pending",
-        from: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t", // User's address
-        to: recipient,
+        from: address,
+        to: recipient as `0x${string}`,
         amount: parseFloat(amount),
         assetSymbol: asset.symbol,
         value: parseFloat(amount) * asset.price,
@@ -73,36 +78,52 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
       })
 
       toast({
-        title: "Transaction submitted",
+        title: "Preparing transaction",
         description: `Sending ${amount} ${asset.symbol} to ${recipient.slice(0, 6)}...${recipient.slice(-4)}`,
       })
 
-      // Simulate transaction confirmation after some time
-      setTimeout(async () => {
-        const success = Math.random() > 0.2 // 80% success rate for demo
+      // Send the transaction using the bundler
+      const result = await sendUserOperation({
+        sender: address as `0x${string}`,
+        target: recipient as `0x${string}`,
+        value: parseEther(amount),
+        waitForReceipt: true
+      })
 
-        // In a real app, we would update the transaction status in the store
-        // For now, we'll just show a toast
-        if (success) {
-          toast({
-            title: "Transaction confirmed",
-            description: `Successfully sent ${amount} ${asset.symbol}`,
-            variant: "default",
-          })
-        } else {
-          toast({
-            title: "Transaction failed",
-            description: "Please try again later",
-            variant: "destructive",
-          })
-        }
-      }, 5000)
+      // Update transaction in store with hash
+      if (result.transactionHash) {
+        await addTransaction({
+          id: txId,
+          type: "send",
+          status: "confirmed",
+          from: address,
+          to: recipient as `0x${string}`,
+          amount: parseFloat(amount),
+          assetSymbol: asset.symbol,
+          value: parseFloat(amount) * asset.price,
+          fee: 0.001,
+          hash: result.transactionHash
+        })
 
-      onClose()
+        toast({
+          title: "Transaction confirmed",
+          description: `Successfully sent ${amount} ${asset.symbol}`,
+          variant: "default",
+        })
+      }
+
+      onOpenChange(false)
       setRecipient("")
       setAmount("")
-    } catch (err) {
-      setError("Failed to send transaction. Please try again.")
+    } catch (err: any) {
+      console.error("Transaction error:", err)
+      setError(err.message || "Failed to send transaction. Please try again.")
+      
+      toast({
+        title: "Transaction failed",
+        description: err.message || "Please try again later",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -112,7 +133,7 @@ export function SendAssetModal({ isOpen, onClose, asset }: SendAssetModalProps) 
     setRecipient("")
     setAmount("")
     setError(null)
-    onClose()
+    onOpenChange(false)
   }
 
   const handleMaxAmount = () => {

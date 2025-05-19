@@ -770,7 +770,7 @@ const SidebarContent = React.memo(
             isCollapsed ? "justify-center" : "px-3"
           )}>
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-medium">
-              {user?.name?.[0] || "S"}
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
             </div>
             <AnimatePresence>
               {!isCollapsed && (

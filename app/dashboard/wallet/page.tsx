@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
+import WalletPageClient from "./WalletPageClient"
 
 export const metadata = {
   title: "Wallet | Bumblebee Finance",
@@ -18,6 +19,7 @@ export default function WalletPage() {
           <rect width="100%" height="100%" fill="url(#honeycomb)" />
         </svg>
       </div>
+      <WalletPageClient/>
     </Suspense>
   )
 }

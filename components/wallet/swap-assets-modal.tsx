@@ -23,11 +23,11 @@ import { Slider } from "@/components/ui/slider"
 
 export type SwapAssetsModalProps = {
   isOpen: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
   fromAsset: Asset | null
 }
 
-export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalProps) {
+export function SwapAssetsModal({ isOpen, onOpenChange, fromAsset }: SwapAssetsModalProps) {
   const { assets, isConnected } = useWalletStore()
   const { addTransaction } = useTransactionStore()
   const { toast } = useToast()
@@ -88,7 +88,7 @@ export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalP
   const handleSwapDirection = () => {
     if (fromAsset && toAsset) {
       setToAssetId(fromAsset.id)
-      onClose() // Close and reopen with new from asset
+      onOpenChange(false) // Close and reopen with new from asset
       setTimeout(() => {
         // This is a workaround since we can't directly change the fromAsset prop
         // In a real app, you'd use a more robust state management approach
@@ -156,7 +156,7 @@ export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalP
         }
       }, 5000)
 
-      onClose()
+      onOpenChange(false)
       setFromAmount("")
       setToAmount("")
     } catch (err) {
@@ -171,7 +171,7 @@ export function SwapAssetsModal({ isOpen, onClose, fromAsset }: SwapAssetsModalP
     setToAmount("")
     setError(null)
     setShowSettings(false)
-    onClose()
+    onOpenChange(false)
   }
 
   // Calculate price impact

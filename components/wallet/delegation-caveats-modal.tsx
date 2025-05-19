@@ -23,14 +23,14 @@ import { Address } from 'viem';
 
 interface DelegationCaveatsModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   onSave: (caveats: DelegationCaveat[]) => void;
   initialCaveats?: DelegationCaveat[];
 }
 
 export function DelegationCaveatsModal({
   isOpen,
-  onClose,
+  onOpenChange,
   onSave,
   initialCaveats = []
 }: DelegationCaveatsModalProps) {
@@ -152,11 +152,11 @@ export function DelegationCaveatsModal({
 
   const handleSave = () => {
     onSave(caveats);
-    onClose();
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Configure Delegation Caveats</DialogTitle>
@@ -294,7 +294,7 @@ export function DelegationCaveatsModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave}>Save Caveats</Button>
         </DialogFooter>
       </DialogContent>

@@ -4,6 +4,7 @@ import {
   createDelegation,
   createCaveatBuilder
 } from "@metamask/delegation-toolkit";
+import { getDeleGatorEnvironment } from "@metamask/delegation-utils";
 import { http, createPublicClient } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { lineaSepolia as chain } from "viem/chains";
@@ -72,7 +73,10 @@ export async function createDelegatorAccount(params: {
 }
 
 function buildCaveats(caveats: any[]) {
-  const environment = 'linea-sepolia';
+  // Get the environment for the Linea Sepolia chain
+  // Using chain ID 59141 for Linea Sepolia
+  const environment = getDeleGatorEnvironment(59141);
+  
   const caveatBuilder = createCaveatBuilder(environment);
 
   return caveats.reduce((builder, caveat) => {

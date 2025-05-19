@@ -18,12 +18,12 @@ import { QRCodeSVG } from "qrcode.react"
 
 export type ReceiveAssetModalProps = {
   isOpen: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
   asset: Asset | null
   walletAddress: string
 }
 
-export function ReceiveAssetModal({ isOpen, onClose, asset, walletAddress }: ReceiveAssetModalProps) {
+export function ReceiveAssetModal({ isOpen, onOpenChange, asset, walletAddress }: ReceiveAssetModalProps) {
   const { copy, status } = useClipboard()
   const [showQR, setShowQR] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
@@ -79,7 +79,7 @@ export function ReceiveAssetModal({ isOpen, onClose, asset, walletAddress }: Rec
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function ReceiveAssetModal({ isOpen, onClose, asset, walletAddress }: Rec
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

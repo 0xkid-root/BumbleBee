@@ -291,7 +291,17 @@ export default function HeroSection() {
 
   useEffect(() => {
     if (isConnected && !showRegistration) {
-      router.push("/dashboard");
+      // Add a toast notification before redirecting
+      toast.success("Wallet connected successfully!", {
+        description: "Redirecting to your dashboard..."
+      });
+      
+      // Short delay before redirect for better UX
+      const redirectTimer = setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [isConnected, showRegistration, router]);
 
