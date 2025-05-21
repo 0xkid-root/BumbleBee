@@ -12,4 +12,6 @@ export async function deploySmartAccount(
   return {
     receipt,
   };
+  console.log("accout page console",receipt);
+
 }

@@ -21,17 +21,17 @@ let pimlicoClient: ReturnType<typeof createPimlicoClient>;
 // Check if we're in a browser environment
 if (typeof window !== 'undefined') {
   paymasterClient = createPaymasterClient({
-    transport: http(BUNDLER_URL),
+    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
   });
 
   bundler = createBundlerClient({
-    transport: http(BUNDLER_URL),
+    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
     paymaster: paymasterClient,
     chain,
   });
 
   pimlicoClient = createPimlicoClient({
-    transport: http(BUNDLER_URL),
+    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
   });
 } else {
   // Provide mock implementations for SSR
@@ -54,10 +54,14 @@ export const sendUserOp = async (
     calls,
     ...fees,
   });
+  console.log(userOpHash,"hii userOpHash");
 
   const receipt = await bundler.waitForUserOperationReceipt({
     hash: userOpHash,
   });
+
+  console.log(receipt);
+
 
   return receipt;
 };

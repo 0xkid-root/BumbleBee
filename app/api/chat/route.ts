@@ -61,7 +61,7 @@ export async function POST(request: Request) {
               "Fetching delegations for address:",
               aiSmartAccount.address
             );
-            const delegationStorageClient = getDelegationStorageClient();
+            const delegationStorageClient =await getDelegationStorageClient();
             const result = await delegationStorageClient.fetchDelegations(
               aiSmartAccount.address,
               DelegationStoreFilter.Given

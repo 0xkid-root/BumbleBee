@@ -105,7 +105,7 @@ const sampleConversation = [
   {
     id: 1,
     role: "assistant",
-    content: "Hello! I'm EduAI, your personal education assistant. I can help you learn about any subject, explain complex concepts, and answer your questions. What would you like to learn about today?",
+    content: "Hello! I'm BBA, your personal education assistant. I can help you learn about any subject, explain complex concepts, and answer your questions. What would you like to learn about today?",
     timestamp: "2 minutes ago",
     isHighlighted: false
   },
@@ -387,14 +387,14 @@ export default function EnhancedEduAIAssistant() {
   // Download conversation
   const downloadConversation = () => {
     const conversationText = messages.map(msg => 
-      `${msg.role === 'assistant' ? 'EduAI' : 'User'} (${msg.timestamp}): ${msg.content}`
+      `${msg.role === 'assistant' ? 'BBA' : 'User'} (${msg.timestamp}): ${msg.content}`
     ).join('\n\n')
     
     const blob = new Blob([conversationText], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'EduAI_Conversation.txt'
+    link.download = 'BBA_Conversation.txt'
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -510,7 +510,7 @@ export default function EnhancedEduAIAssistant() {
                       backgroundSize: "200% auto"
                     }}
                   >
-                    EduAI Assistant
+                    BumbleBee Assistant
                   </motion.h1>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Your personal learning companion</p>
                 </div>
@@ -891,7 +891,7 @@ export default function EnhancedEduAIAssistant() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium">
-                            {message.role === 'user' ? 'You' : 'EduAI'}
+                            {message.role === 'user' ? 'You' : 'BBA'}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {message.timestamp}
