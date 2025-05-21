@@ -1,0 +1,110 @@
+"use client"
+
+import { useAutomationStore } from "@/lib/store/use-automation-store"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { MoreHorizontal, Calendar, ArrowRight, Clock } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { formatCurrency } from "@/lib/utils"
+
+type RecurringTransactionCardProps = {
+  transaction: ReturnType<typeof useAutomationStore>["recurringTransactions"][0]
+}
+
+export function RecurringTransactionCard({ transaction }: RecurringTransactionCardProps) {
+  const { updateRecurringTransactionStatus, deleteRecurringTransaction } = useAutomationStore()
+  
+  const handleStatusChange = (checked: boolean) => {
+    updateRecurringTransactionStatus(transaction.id, checked ? "active" : "paused")
+  }
+  
+  const handleDelete = () => {
+    deleteRecurringTransaction(transaction.id)
+  }
+  
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg font-semibold">{transaction.name}</CardTitle>
+            <CardDescription className="text-sm mt-1">{transaction.description}</CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-2 mb-4">
+          <Badge variant={transaction.status === "active" ? "success" : "secondary"}>
+            {transaction.status === "active" ? "Active" : "Paused"}
+          </Badge>
+          <Badge variant="outline">{transaction.frequency}</Badge>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Amount:</span>
+            <span className="text-sm font-semibold">{formatCurrency(transaction.amount)} {transaction.token}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Recipient:</span>
+            <span className="text-sm">{transaction.recipient}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Next payment:</span>
+            <div className="flex items-center gap-1 text-sm">
+              <Calendar className="h-3 w-3" />
+              <span>{transaction.nextPaymentDate}</span>
+            </div>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Frequency:</span>
+            <div className="flex items-center gap-1 text-sm">
+              <Clock className="h-3 w-3" />
+              <span>{transaction.frequency}</span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-between pt-2 border-t">
+        <div className="flex items-center gap-2">
+          <Switch 
+            checked={transaction.status === "active"}
+            onCheckedChange={handleStatusChange}
+            id={`transaction-status-${transaction.id}`}
+          />
+          <label 
+            htmlFor={`transaction-status-${transaction.id}`}
+            className="text-sm font-medium cursor-pointer"
+          >
+            {transaction.status === "active" ? "Enabled" : "Disabled"}
+          </label>
+        </div>
+        <Button variant="ghost" size="sm" className="gap-1">
+          Details <ArrowRight className="h-4 w-4" />
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
