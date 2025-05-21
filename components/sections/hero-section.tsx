@@ -113,7 +113,7 @@ const WaitlistModal = () => {
           )}
         >
           <span className="relative z-10 flex items-center">
-            Join Waitlist
+            Join  Waitlist
             <ListPlus className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </span>
         </Button>

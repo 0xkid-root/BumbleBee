@@ -4,7 +4,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/yourusername/BumbleBee/graphs/commit-activity)
 
-📚 [Full Project Documentation](https://docs.google.com/document/d/13a7N5rxh1-fjHeFU2xtYi6DkO6LUAJa4Upd0lHc66Eg/edit?usp=sharing)
+📚 [Full Project Documentation](https://drive.google.com/drive/folders/1XkR7YPv_4yrydFa3qkQCBdZ7G_m8V3D4?usp=sharing)
 
 ## 📋 Table of Contents
 - [Overview](#overview)
