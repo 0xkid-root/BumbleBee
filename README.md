@@ -1,232 +1,170 @@
-# MetaMask Gaia DTK Starter
+# 🐝 Bumblebee: AI-Powered Social Finance dApp
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/yourusername/BumbleBee/graphs/commit-activity)
+
+📚 [Full Project Documentation](https://docs.google.com/document/d/13a7N5rxh1-fjHeFU2xtYi6DkO6LUAJa4Upd0lHc66Eg/edit?usp=sharing)
+
+## 📋 Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Technical Architecture](#technical-architecture)
+- [Getting Started](#getting-started)
+- [Development Roadmap](#development-roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## 🌟 Overview
 
-The MetaMask Gaia DTK Starter is a powerful Next.js template that seamlessly integrates Gaia's advanced capabilities with MetaMask's Develegation Toolkit (DTK). This project allows developers to build sophisticated blockchain applications with AI-enhanced functionalities while leveraging MetaMask's secure wallet infrastructure.
+Bumblebee is a decentralized application (dApp) that seamlessly integrates artificial intelligence (AI) with decentralized finance (DeFi) to deliver an intuitive, collaborative, and inclusive crypto experience. Designed for users ranging from beginners to seasoned investors, Bumblebee combines cutting-edge blockchain technology, AI-driven insights, and social financial tools to simplify cryptocurrency management.
 
-![Gaia Delegation Toolkit Gif](./gaia-dtk-2.gif)
+### Core Capabilities
+- Automated recurring payments
+- Shared expense management
+- AI-optimized investing
+- Personalized blockchain education
+- Decentralized computation and storage via Gaia node
 
-The starter includes a full ERC20 token creation system through an integrated factory contract, allowing users to deploy custom tokens directly through the application. Combined with AI-powered interactions, this creates a powerful platform for building next-generation decentralized applications.
+## 🚀 Key Features
 
-## ✨ Features
+### 1. Subscription System (ERC-7710)
+- **Overview**: Implements on-chain recurring payments using ERC-7710 standard
+- **Applications**:
+  - Premium DeFi tools subscription
+  - Automated recurring payments
+  - dApp monetization
+- **Technical Implementation**:
+  - Gas-optimized smart contracts
+  - Stablecoin integration (USDC, DAI)
+  - Event-driven subscription management
 
-- **AI-Powered Interactions**: Utilize GaiaNet AI to create intelligent and responsive dApp experiences
-- **ERC20 Token Creation**: Create custom ERC20 tokens through the integrated factory contract
-- **Secure Blockchain Integration**: Connect with the Ethereum ecosystem through MetaMask's trusted wallet infrastructure
-- **Delegation Management**: Metamask's Delegation Toolkit for managing user-to-AI agent delegations
-- **Bundler Service Integration**: Pre-configured connection to bundler services for transaction handling
-- **Modern UI Components**: Ready-made UI components including chat interfaces, cards, and inputs
-- **Next.js App Router**: Built on Next.js 13+ with the new App Router architecture
-- **TypeScript Support**: Full TypeScript integration for type safety and better developer experience
+### 2. Social Payment Tabs
+- **Overview**: Collaborative expense management system
+- **Features**:
+  - Stream-controlled disbursements
+  - Role-based access control
+  - On-chain transaction records
+- **Technical Details**:
+  - Multi-signature wallet integration
+  - Dynamic participant management
+  - Smart contract-based fund allocation
+
+### 3. AI-Enhanced Smart Wallets
+- **Overview**: AI-powered financial management system
+- **Capabilities**:
+  - Customizable permissions
+  - Automated investing
+  - Real-time fraud detection
+- **Technical Implementation**:
+  - Modular access control lists
+  - Oracle integration
+  - ChainLink price feeds
+
+### 4. Personalized AI Portfolio Management (Coming Soon)
+- **Overview**: AI-driven investment optimization
+- **Features**:
+  - Performance analytics
+  - Diversification suggestions
+  - Predictive modeling
+- **Technical Stack**:
+  - TensorFlow integration
+  - Decentralized oracle support
+  - Real-time market data processing
+
+### 5. Simplified Token Swapping (Coming Soon)
+- **Overview**: User-friendly token exchange interface
+- **Features**:
+  - Guided interface
+  - Transparent pricing
+  - Smart routing
+- **Gaia Node Integration**:
+  - Decentralized computation
+  - Cross-chain swap support
+  - Enhanced security
+
+### 6. Conversational AI and Educational Tools (Coming Soon)
+- **Overview**: AI-powered learning and assistance
+- **Features**:
+  - Interactive guidance
+  - Blockchain education
+  - Progress tracking
+- **Technical Implementation**:
+  - BERT-based NLP models
+  - IPFS integration
+  - Multilingual support
+
+## 🏗️ Technical Architecture
+
+### Smart Contract Layer
+- ERC-7710 implementation
+- Shared tab management
+- Permissioned wallet system
+- Security features and audits
+
+### AI & Backend Infrastructure
+- Machine learning engine
+- Gaia node integration
+- Off-chain services
+- Real-time monitoring
+
+### Frontend Stack
+- React.js
+- TailwindCSS
+- Multi-wallet support
+- Accessibility compliance
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-
-- Node.js (v16 or later)
-- pnpm package manager
-- MetaMask extension installed in your browser
+- Node.js (v16+)
+- MetaMask or compatible Web3 wallet
+- Git
 
 ### Installation
-
-1. Clone the repository:
-
 ```bash
-git clone https://github.com/meowyx/metamask-gaia-starter.git
+# Clone the repository
+git clone https://github.com/0xkid-root/BumbleBee
+
+# Install dependencies
+cd BumbleBee
+npm install
+
+# Start development server
+npm run dev
 ```
 
-2. Navigate to the project directory:
+## 📅 Development Roadmap
 
-```bash
-cd metamask-gaia-starter
-```
+### Q3 2025
+- MVP launch
+- Subscription tools
+- AI smart wallets
+- Chatbot assistant
 
-3. Install dependencies using pnpm:
+### Q4 2025
+- Social tabs
+- Dynamic portfolio management
 
-```bash
-pnpm install
-```
+### Q1 2026
+- DeFi education
+- Cross-chain swap
+- Cross-chain operability
 
-4. Create a `.env` file in the root directory with the following configuration:
+### Q2 2026
+- AI co-pilot features
+- Goal setting
+- Intelligent financial planning
 
-```
-# Factory contract configuration
-NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS=0x...
-NEXT_PUBLIC_CREATE_TOKEN_SELECTOR=0x...
+## 🤝 Contributing
 
-# Bundler service configuration
-NEXT_PUBLIC_BUNDLER_URL=https://api.pimlico.io/v2/137/rpc?apikey=YOUR_API_KEY
-NEXT_PUBLIC_CHAIN_ID=59141
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-# Infura and private key configuration
-INFURA_PROJECT_ID=your_infura_project_id
-PRIVATE_KEY=your_private_key
+## 📄 License
 
-# Delegation storage configuration
-NEXT_PUBLIC_DELEGATION_STORAGE_API_KEY=your_delegation_api_key
-NEXT_PUBLIC_DELEGATION_STORAGE_API_KEY_ID=your_delegation_api_key_id
-NEXT_PUBLIC_DELEGATION_STORAGE_ENVIRONMENT=development
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-# Gaia AI configuration
-GAIA_MODEL_BASE_URL=your_gaia_model_url
-GAIA_API_KEY=your_gaia_api_key
-```
+---
 
-5. Start the development server:
+Built with ❤️ by the Bumblebee Team
 
-```bash
-pnpm dev
-```
-
-6. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application running.
-
-## 📖 Project Structure
-
-```
-├── .next/             # Next.js build output
-├── ai/                # AI-related utilities
-│   └── tools.ts       # AI tools implementation
-├── app/               # Next.js App Router 
-│   ├── api/           # API routes
-│   ├── globals.css    # Global styles
-│   ├── layout.tsx     # Root layout component
-│   └── page.tsx       # Home page component
-├── components/        # Reusable UI components
-│   ├── ui/            # Basic UI components
-│   │   ├── badge.tsx  # Badge component
-│   │   ├── button.tsx # Button component
-│   │   ├── card.tsx   # Card component
-│   │   └── input.tsx  # Input component
-│   ├── Chat.tsx       # Chat interface component
-│   ├── DelegationManager.tsx # Delegation management component
-│   └── Message.tsx    # Message component
-├── lib/               # Utility functions and libraries
-├── services/          # API services
-│   ├── account.ts     # Account-related services
-│   ├── bundler.ts     # Bundler service implementation
-│   └── utils.ts       # Service utilities
-├── public/            # Static assets
-│   ├── file.svg       # File icon
-│   ├── globe.svg      # Globe icon
-│   ├── next.svg       # Next.js logo
-│   └── vercel.svg     # Vercel logo
-├── node_modules/      # Dependencies
-├── .env               # Environment variables
-├── package.json       # Project dependencies
-└── pnpm-lock.yaml    # pnpm lock file
-```
-
-## 🔧 Configuration
-
-## 🔧 Configuration
-
-### ERC20 Factory Contract Setup
-
-This project integrates with the [ERC20 Factory Contract](https://github.com/meowyx/erc20-factory) to enable token creation capabilities. Follow these steps to set up the integration:
-
-1. Clone and deploy the ERC20 Factory contract:
-   ```bash
-   git clone https://github.com/meowyx/erc20-factory
-   cd erc20-factory
-   npm install
-   npx hardhat compile
-   npx hardhat ignition deploy ignition/modules/tokenFactory.ts --network linea-testnet
-   ```
-
-2. After deployment, update your `.env` file with the deployed contract address:
-   ```
-   NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS=0x...  # The deployed factory contract address
-   NEXT_PUBLIC_CREATE_TOKEN_SELECTOR=0x...     # The function selector for createToken
-   ```
-
-3. Update the `constants.ts` file with the ERC20 Factory ABI:
-   ```typescript
-   // Add the ERC20 Factory ABI to your constants.ts file
-   export const FACTORY_ABI = [
-     // ... ABI contents from the compiled contract
-     {
-       "inputs": [
-         {"internalType": "string", "name": "name", "type": "string"},
-         {"internalType": "string", "name": "symbol", "type": "string"},
-         {"internalType": "uint8", "name": "decimals", "type": "uint8"},
-         {"internalType": "uint256", "name": "initialSupply", "type": "uint256"}
-       ],
-       "name": "createToken",
-       "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-       "stateMutability": "nonpayable",
-       "type": "function"
-     }
-     // ... other ABI entries
-   ];
-   ```
-
-4. The factory contract allows you to create new ERC20 tokens with custom parameters such as name, symbol, decimals, and initial supply.
-
-The ERC20 Factory project structure:
-```
-erc20-factory/
-├── contracts/
-│   ├── BaseERC20Token.sol   # Base token implementation
-│   └── ERC20Factory.sol     # Factory for deploying tokens
-├── test/
-│   └── ERC20Factory.test.js # Test scripts
-├── ignition/
-│   └── modules/
-│       └── tokenFactory.js  # Deployment configuration
-├── hardhat.config.js        # Hardhat configuration
-└── package.json             # Project dependencies
-```
-
-### MetaMask Setup
-
-1. Install the [MetaMask extension](https://metamask.io/) in your browser
-2. Create or import a wallet
-3. Connect your dApp using the provided hooks in the starter
-
-### Gaia Integration
-
-1. Sign up for an API key ober [here](https://gaianet.ai)
-2. Add your API key to the `.env` file under `GAIA_API_KEY`
-3. Set the model base URL in the `.env` file under `GAIA_MODEL_BASE_URL`
-4. Use the pre-configured AI tools in `ai/tools.ts` to interact with GaiaNet features
-
-### Bundler Service Configuration
-
-1. Get an API key from [Pimlico](https://pimlico.io/) or your preferred bundler service
-2. Add the bundler URL to the `.env` file under `NEXT_PUBLIC_BUNDLER_URL`
-3. Set the correct chain ID in the `.env` file under `NEXT_PUBLIC_CHAIN_ID`
-
-### Delegation System Setup
-
-1. Configure the delegation storage API keys in the `.env` file
-2. Use the `DelegationManager.tsx` component to manage delegations between users and AI agents
-
-## 📚 Documentation
-
-For more detailed information about the technologies used in this starter:
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [MetaMask Documentation](https://docs.metamask.io/)
-- [Gaia Documentation](https://docs.gaianet.ai/)
-- [pnpm Documentation](https://pnpm.io/documentation)
-
-
-## 👥 Contributing
-
-Contributions are always welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature-name`
-3. Commit your changes: `git commit -m 'Add some feature'`
-4. Push to the branch: `git push origin feature/your-feature-name`
-5. Open a pull request
-
-Please ensure your code follows the project's coding standards and includes appropriate tests.
-
-
-## 🙏 Acknowledgements
-
-- [MetaMask Delegation Toolkit](https://docs.gator.metamask.io/) for their Delegation Toolkit.
-- [Gaia](https://gaianet.ai/) for their AI platform
-- [Next.js](https://nextjs.org/) for the React framework
-- [Vercel AI SDK](https://sdk.vercel.ai/) for The AI Toolkit for TypeScript
