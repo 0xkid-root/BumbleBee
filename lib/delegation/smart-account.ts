@@ -7,7 +7,7 @@ import {
 import { getDeleGatorEnvironment } from "@metamask/delegation-utils";
 import { http, createPublicClient } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
-import { lineaSepolia as chain } from "viem/chains";
+import { sepolia as chain } from "viem/chains";
 import { Address } from "viem";
 
 const transport = http();

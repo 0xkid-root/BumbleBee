@@ -2,7 +2,6 @@ import type {
   Implementation,
   MetaMaskSmartAccount,
 } from "@metamask/delegation-toolkit";
-import { lineaSepolia as chain } from "viem/chains";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
 import {
   createBundlerClient,
@@ -12,33 +11,35 @@ import { http } from "viem";
 
 // Default bundler URL if environment variable is not set
 const BUNDLER_URL = "https://api.pimlico.io/v2/11155111/rpc?apikey=pim_dLoZZrLYBZNJ91bN3zGTtw";
+const pimlicoKey = process.env.NEXT_PUBLIC_PIMLICO_API_KEY;
 
 // Create clients only if we're in a browser environment to avoid SSR issues
 let paymasterClient: ReturnType<typeof createPaymasterClient>;
 let bundler: ReturnType<typeof createBundlerClient>;
 let pimlicoClient: ReturnType<typeof createPimlicoClient>;
 
-// Check if we're in a browser environment
-if (typeof window !== 'undefined') {
-  paymasterClient = createPaymasterClient({
-    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
-  });
+export const initializeBundler = (chainId: number) => {
+  if (typeof window !== 'undefined') {
+    paymasterClient = createPaymasterClient({
+      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+    });
 
-  bundler = createBundlerClient({
-    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
-    paymaster: paymasterClient,
-    chain,
-  });
+    bundler = createBundlerClient({
+      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+      paymaster: paymasterClient,
+      chainId,
+    });
 
-  pimlicoClient = createPimlicoClient({
-    transport: http(process.env.NEXT_PUBLIC_BUNDLER_URL),
-  });
-} else {
-  // Provide mock implementations for SSR
-  paymasterClient = {} as ReturnType<typeof createPaymasterClient>;
-  bundler = {} as ReturnType<typeof createBundlerClient>;
-  pimlicoClient = {} as ReturnType<typeof createPimlicoClient>;
-}
+    pimlicoClient = createPimlicoClient({
+      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+    });
+  } else {
+    // Provide mock implementations for SSR
+    paymasterClient = {} as ReturnType<typeof createPaymasterClient>;
+    bundler = {} as ReturnType<typeof createBundlerClient>;
+    pimlicoClient = {} as ReturnType<typeof createPimlicoClient>;
+  }
+};
 
 // Export the clients
 export { paymasterClient, bundler, pimlicoClient };
@@ -54,7 +55,7 @@ export const sendUserOp = async (
     calls,
     ...fees,
   });
-  console.log(userOpHash,"hii userOpHash");
+  console.log(userOpHash,"hii ");
 
   const receipt = await bundler.waitForUserOperationReceipt({
     hash: userOpHash,

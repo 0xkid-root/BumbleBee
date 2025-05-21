@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react"
-import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi"
+import { useAccount, useConnect, useDisconnect } from "wagmi"
 import { injected } from "wagmi/connectors"
 import { useRouter } from "next/navigation"
 import { getUserByWalletAddress, createUser } from "@/lib/idb"
 import type { AuthUser, AuthHookResult } from "@/types/auth"
 import { toast } from "sonner"
+import { useChainId } from "wagmi";
+
 
 export function useAuth(): AuthHookResult {
   const [isLoading, setIsLoading] = useState(true)
@@ -15,6 +17,7 @@ export function useAuth(): AuthHookResult {
   const { disconnect } = useDisconnect()
   const { connectAsync } = useConnect()
   const chainId = useChainId()
+  console.log(chainId,"hiii")
 
   const connectWallet = async () => {
     try {
