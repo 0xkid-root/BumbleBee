@@ -119,7 +119,7 @@ export default function WalletPageClient(): React.ReactElement {
     setIsLoading(true);
 
     const { fast: fee } = await pimlicoClient!.getUserOperationGasPrice();
-    console.log(fee,"fee");
+    console.log(fee,"fee is here why you are fear");
 
     const userOperationHash = await bundler!.sendUserOperation({
       account: smartAccount,
