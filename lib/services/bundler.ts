@@ -2,6 +2,7 @@ import type {
   Implementation,
   MetaMaskSmartAccount,
 } from "@metamask/delegation-toolkit";
+import { sepolia as chain } from "wagmi/chains";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
 import {
   createBundlerClient,
@@ -9,29 +10,37 @@ import {
 } from "viem/account-abstraction";
 import { http } from "viem";
 
+
+
+
+
+
 // Default bundler URL if environment variable is not set
-const BUNDLER_URL = "https://api.pimlico.io/v2/11155111/rpc?apikey=pim_dLoZZrLYBZNJ91bN3zGTtw";
 const pimlicoKey = process.env.NEXT_PUBLIC_PIMLICO_API_KEY;
+console.log(pimlicoKey,"pimlicoKey");
+
+console.log(chain,"chainis here")
+
+
 
 // Create clients only if we're in a browser environment to avoid SSR issues
 let paymasterClient: ReturnType<typeof createPaymasterClient>;
 let bundler: ReturnType<typeof createBundlerClient>;
 let pimlicoClient: ReturnType<typeof createPimlicoClient>;
 
-export const initializeBundler = (chainId: number) => {
   if (typeof window !== 'undefined') {
     paymasterClient = createPaymasterClient({
-      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+      transport: http(process.env.NEXT_PUBLIC_PIMLICO_API_KEY),
     });
 
     bundler = createBundlerClient({
-      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+      transport: http(process.env.NEXT_PUBLIC_PIMLICO_API_KEY),
       paymaster: paymasterClient,
-      chainId,
+      chain,
     });
 
     pimlicoClient = createPimlicoClient({
-      transport: http(`https://api.pimlico.io/v2/${chainId}/rpc?apikey=${pimlicoKey}`),
+      transport: http(process.env.NEXT_PUBLIC_PIMLICO_API_KEY),
     });
   } else {
     // Provide mock implementations for SSR
@@ -39,7 +48,7 @@ export const initializeBundler = (chainId: number) => {
     bundler = {} as ReturnType<typeof createBundlerClient>;
     pimlicoClient = {} as ReturnType<typeof createPimlicoClient>;
   }
-};
+
 
 // Export the clients
 export { paymasterClient, bundler, pimlicoClient };

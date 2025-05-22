@@ -8,8 +8,7 @@ import { deploySmartAccount } from "@/lib/services/account";
 import {
   paymasterClient,
   bundler,
-  pimlicoClient,
-  initializeBundler,
+  pimlicoClient
 } from "@/lib/services/bundler";
 import { zeroAddress } from "viem";
 import type { Hex } from "viem";
@@ -109,11 +108,7 @@ export default function WalletPageClient(): React.ReactElement {
 
   console.log(isConnected, address, chainId, "isConnected");
 
-  useEffect(() => {
-    if (chainId) {
-      initializeBundler(chainId);
-    }
-  }, [chainId]);
+ 
 
   const handleErrorRetry = useCallback(() => {
     // Placeholder for retry logic
@@ -122,7 +117,9 @@ export default function WalletPageClient(): React.ReactElement {
   const onHandleSmartAccount = async () => {
     if (!smartAccount) return;
     setIsLoading(true);
+
     const { fast: fee } = await pimlicoClient!.getUserOperationGasPrice();
+    console.log(fee,"fee");
 
     const userOperationHash = await bundler!.sendUserOperation({
       account: smartAccount,
