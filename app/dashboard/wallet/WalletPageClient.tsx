@@ -34,7 +34,7 @@ import {
   ArrowUpDown,
   Check,
 } from "lucide-react";
-import { MetaMaskSmartAccount } from "@metamask/delegation-toolkit";
+import { MetaMaskSmartAccount, Implementation } from "@metamask/delegation-toolkit";
 
 const LoadingOverlay = ({
   message,
@@ -100,7 +100,7 @@ export default function WalletPageClient(): React.ReactElement {
     message: string;
     retryable: boolean;
   } | null>(null);
-  const { smartAccount } = useDelegatorSmartAccount();
+  const { smartAccount } = useDelegatorSmartAccount() as { smartAccount: MetaMaskSmartAccount<Implementation.Hybrid> | null };
   console.log(smartAccount, "smartAccount");
   const [delegateWallet, setDelegateWallet] = useState<Hex>("0x");
 
@@ -121,25 +121,8 @@ export default function WalletPageClient(): React.ReactElement {
     const { fast: fee } = await pimlicoClient!.getUserOperationGasPrice();
     console.log(fee,"fee is here why you are fear");
 
-    const userOperationHash = await bundler!.sendUserOperation({
-      account: smartAccount,
-      calls: [
-        {
-          to: zeroAddress,
-        },
-      ],
-      paymaster: paymasterClient,
-      ...fee,
-    });
-    console.log("userOperationHash", userOperationHash);
-
-    const { receipt } = await bundler!.waitForUserOperationReceipt({
-      hash: userOperationHash,
-    });
-
-    console.log(receipt);
-    const privateKey = generatePrivateKey();
-    setDelegateWallet(privateKey);
+    const receipt = await deploySmartAccount(smartAccount);
+    console.log(receipt,"receipt is here why you are fear");
     setIsLoading(false);
     setCurrentStep(2);
   };
